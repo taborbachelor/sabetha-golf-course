@@ -31,6 +31,7 @@ npm test             # Vitest (single run)
 npm run build        # production build
 npm run format       # Prettier (format:check to verify)
 npm run check:square # one $1.00 Square SANDBOX payment to prove credentials work
+npm run staff:role -- <email> <staff|admin|none>  # grant staff access (create the user in Supabase first)
 ```
 
 Lint, typecheck, test and build must all pass before opening a PR. CI runs the same four on every PR.
