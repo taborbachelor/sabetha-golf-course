@@ -24,7 +24,8 @@
     "e2e:dues": "node e2e/dues-payment.cjs",
     "e2e:settings": "node e2e/admin-settings.cjs",
     "e2e:menu": "node e2e/admin-menu.cjs",
-    "e2e": "node e2e/pay-to-play.cjs && node e2e/staff-login.cjs && node e2e/staff-board.cjs && node e2e/order-to-course.cjs && node e2e/orders-queue.cjs && node e2e/membership-apply.cjs && node e2e/dues-payment.cjs && node e2e/admin-settings.cjs && node e2e/admin-menu.cjs"
+    "e2e:tiers": "node e2e/admin-tiers-carts.cjs",
+    "e2e": "node e2e/pay-to-play.cjs && node e2e/staff-login.cjs && node e2e/staff-board.cjs && node e2e/order-to-course.cjs && node e2e/orders-queue.cjs && node e2e/membership-apply.cjs && node e2e/dues-payment.cjs && node e2e/admin-settings.cjs && node e2e/admin-menu.cjs && node e2e/admin-tiers-carts.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

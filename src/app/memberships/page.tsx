@@ -8,6 +8,8 @@ import {
   memberPerks,
   sampleTiers,
 } from "@/content/memberships";
+import { formatPrice } from "@/content/menu";
+import { getPublicTiers } from "@/lib/memberships/public-tiers";
 import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
@@ -18,6 +20,21 @@ export const metadata: Metadata = {
 
 export default async function MembershipsPage() {
   const { club } = await getSettings();
+  const dbTiers = await getPublicTiers();
+  const tiers = dbTiers
+    ? dbTiers.map((t) => ({
+        name: t.name,
+        note: t.notes,
+        priceCents: t.price_cents,
+        isSample: t.is_sample,
+      }))
+    : sampleTiers.map((t) => ({
+        name: t.name,
+        note: t.note,
+        priceCents: 0,
+        isSample: true,
+      }));
+  const anySample = tiers.some((t) => t.isSample);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
@@ -31,24 +48,35 @@ export default async function MembershipsPage() {
         <h2 id="tiers-heading" className="text-xl font-bold">
           Membership types
         </h2>
-        <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Sample only. These types are placeholders until the club confirms its
-          real tiers and prices. Ask the Club Secretary for current rates.
-        </p>
+        {anySample && (
+          <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Types and dues marked Sample are placeholders until the club
+            confirms its real tiers and prices. Ask the Club Secretary for
+            current rates.
+          </p>
+        )}
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-          {sampleTiers.map((tier) => (
+          {tiers.map((tier) => (
             <li
               key={tier.name}
               className="rounded-lg border border-stone-200 bg-white p-4"
             >
               <p className="flex items-center justify-between gap-2">
                 <span className="font-semibold">{tier.name}</span>
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600">
-                  Sample
-                </span>
+                {tier.isSample && (
+                  <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600">
+                    Sample
+                  </span>
+                )}
               </p>
-              <p className="mt-1 text-sm text-stone-600">{tier.note}</p>
-              <p className="mt-2 text-sm font-medium">Rate on request</p>
+              {tier.note && (
+                <p className="mt-1 text-sm text-stone-600">{tier.note}</p>
+              )}
+              <p className="mt-2 text-sm font-medium">
+                {tier.priceCents > 0
+                  ? `${formatPrice(tier.priceCents)} a year`
+                  : "Rate on request"}
+              </p>
             </li>
           ))}
         </ul>

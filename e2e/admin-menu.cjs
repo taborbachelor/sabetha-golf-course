@@ -56,10 +56,11 @@ async function onMenu(page) {
     await ap.getByLabel("Email").fill(created.user.email);
     await ap.getByLabel("Password").fill(password);
     await ap.getByRole("button", { name: "Sign in" }).click();
-    await ap.waitForURL(/\/admin\/menu$/, { timeout: 30000 });
+    await ap.waitForURL(/\/admin\/menu$/, { timeout: 90000 });
 
     // 1. Add, with a bad price first.
-    await ap.getByText("Add an item").click();
+    // The first hit after a deploy can be slow (cold start).
+    await ap.getByText("Add an item").click({ timeout: 90000 });
     const add = ap
       .locator("details", { hasText: "Add an item" })
       .locator("form");
@@ -115,6 +116,15 @@ async function onMenu(page) {
       .select("id", { count: "exact", head: true })
       .eq("name", ITEM);
     console.log("6 deleted, rows left:", count);
+  } catch (e) {
+    for (const [i, pg] of b
+      .contexts()
+      .flatMap((c) => c.pages())
+      .entries())
+      await pg
+        .screenshot({ path: `${shotDir}/admin-menu-fail-${i}.png` })
+        .catch(() => {});
+    throw e;
   } finally {
     await b.close();
     const { data: left } = await db
