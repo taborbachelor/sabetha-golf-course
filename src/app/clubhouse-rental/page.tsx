@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
+import { clubhouseAmenities, rentalRules } from "@/content/clubhouse";
 import { getSettings } from "@/content/settings";
 
 export const metadata: Metadata = {
   title: "Clubhouse Rental",
   description:
-    "Rent the Sabetha Golf Club clubhouse for your event. Contact the club for dates and details.",
+    "Rent the Sabetha Golf Club clubhouse for weddings, receptions and parties. Amenities, deposit, rules and how to reserve.",
 };
 
 export default function ClubhouseRentalPage() {
-  const { club } = getSettings();
+  const { club, clubhouseRental } = getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
       <h1 className="text-3xl font-bold">Clubhouse Rental</h1>
       <p className="mt-3">
-        The clubhouse is available to rent for parties, meetings and other
-        events. Contact the club for available dates, pricing and details.
+        The clubhouse is a popular spot for weddings, anniversary receptions and
+        other events. To reserve it, contact the Club Secretary or the clubhouse
+        manager.
       </p>
 
       <dl className="mt-6 space-y-3 rounded-lg bg-stone-100 p-4">
@@ -42,6 +44,44 @@ export default function ClubhouseRentalPage() {
           </dd>
         </div>
       </dl>
+
+      <section aria-labelledby="amenities-heading" className="mt-10">
+        <h2 id="amenities-heading" className="text-xl font-bold">
+          The space
+        </h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5">
+          {clubhouseAmenities.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="fees-heading" className="mt-10">
+        <h2 id="fees-heading" className="text-xl font-bold">
+          Fees
+        </h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5">
+          <li>
+            ${clubhouseRental.cleanupDeposit} cleanup deposit. $
+            {clubhouseRental.selfCleanRefund} is returned if you do the cleanup
+            yourself.
+          </li>
+          <li>
+            ${clubhouseRental.outsideCateringFee} fee for outside catering.
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="rental-rules-heading" className="mt-10">
+        <h2 id="rental-rules-heading" className="text-xl font-bold">
+          Rental rules
+        </h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5">
+          {rentalRules.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

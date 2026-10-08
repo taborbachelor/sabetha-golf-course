@@ -46,6 +46,12 @@ export type Settings = {
     guestFee: number;
     gatesUnlock: string; // "HH:MM"
   };
+  clubhouseRental: {
+    cleanupDeposit: number;
+    /** Returned if the renter does the cleanup themselves. */
+    selfCleanRefund: number;
+    outsideCateringFee: number;
+  };
   kitchenStatus: "open" | "drinks_only" | "closed";
 };
 
@@ -88,6 +94,11 @@ const settings: Settings = {
   },
   cartRental: { 9: 15, 18: 20 },
   pool: { guestFee: 4, gatesUnlock: "09:00" },
+  clubhouseRental: {
+    cleanupDeposit: 100,
+    selfCleanRefund: 50,
+    outsideCateringFee: 100,
+  },
   kitchenStatus: "open",
 };
 
