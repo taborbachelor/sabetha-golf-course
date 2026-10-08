@@ -40,3 +40,10 @@ export const memberPerks = [
 ];
 
 export const bylawsUrl = "/files/sabetha-golf-club-bylaws.pdf";
+
+/** Labels for the dues installments, matching the schedule above. */
+export const installmentLabels = {
+  full: { label: "In full", due: "Due March 1" },
+  first: { label: "First half", due: "Due March 1" },
+  second: { label: "Second half", due: "Due June 1" },
+} as const;

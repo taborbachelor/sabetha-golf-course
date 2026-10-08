@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { formatPrice } from "@/content/menu";
+import { installmentLabels } from "@/content/memberships";
 import { getSettings } from "@/content/settings";
 import { requireAdmin } from "@/lib/auth";
 import type { ApplicationStatus } from "@/lib/memberships/application";
+import type { Installment } from "@/lib/memberships/dues";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { setApplicationStatus } from "./actions";
 
@@ -22,6 +25,17 @@ type ApplicationRow = {
   status: ApplicationStatus;
   created_at: string;
   membership_tiers: { name: string; is_sample: boolean } | null;
+};
+
+type DuesRow = {
+  id: string;
+  member_name: string;
+  email: string;
+  installment: Installment;
+  amount_cents: number;
+  payment_id: string | null;
+  created_at: string;
+  membership_tiers: { name: string } | null;
 };
 
 const statusLabels: Record<ApplicationStatus, string> = {
@@ -50,14 +64,26 @@ async function AdminHome() {
   await requireAdmin("/admin");
   const { timeZone } = getSettings();
   const supabase = await createServerSupabase();
-  const { data, error } = await supabase
-    .from("membership_applications")
-    .select(
-      "id, name, address, phone, email, cart_shed, status, created_at, membership_tiers(name, is_sample)",
-    )
-    .order("created_at", { ascending: false })
-    .returns<ApplicationRow[]>();
-  if (error) throw error;
+  const [applications, dues] = await Promise.all([
+    supabase
+      .from("membership_applications")
+      .select(
+        "id, name, address, phone, email, cart_shed, status, created_at, membership_tiers(name, is_sample)",
+      )
+      .order("created_at", { ascending: false })
+      .returns<ApplicationRow[]>(),
+    supabase
+      .from("dues_payments")
+      .select(
+        "id, member_name, email, installment, amount_cents, payment_id, created_at, membership_tiers(name)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .returns<DuesRow[]>(),
+  ]);
+  if (applications.error) throw applications.error;
+  if (dues.error) throw dues.error;
+  const data = applications.data;
 
   const newCount = data.filter((a) => a.status === "submitted").length;
   const received = new Intl.DateTimeFormat("en-US", {
@@ -179,6 +205,57 @@ async function AdminHome() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="dues-heading" className="mt-10">
+        <h2 id="dues-heading" className="text-xl font-bold">
+          Dues payments
+        </h2>
+        <p className="mt-1 text-sm text-stone-600">
+          Paid online at /memberships/dues, newest first. Match them to members
+          by name and email.
+        </p>
+        {dues.data.length === 0 ? (
+          <p className="mt-4 rounded-lg bg-stone-100 px-4 py-3">
+            No dues payments yet.
+          </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-lg border border-stone-200 bg-white">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-stone-50 text-stone-600">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Paid</th>
+                  <th className="px-3 py-2 font-medium">Member</th>
+                  <th className="px-3 py-2 font-medium">Membership</th>
+                  <th className="px-3 py-2 font-medium">Payment</th>
+                  <th className="px-3 py-2 text-right font-medium">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-200">
+                {dues.data.map((d) => (
+                  <tr key={d.id}>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {received.format(new Date(d.created_at))}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="font-medium">{d.member_name}</span>
+                      <span className="block text-stone-600">{d.email}</span>
+                    </td>
+                    <td className="px-3 py-2">
+                      {d.membership_tiers?.name ?? "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {installmentLabels[d.installment].label}
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium">
+                      {formatPrice(d.amount_cents)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
