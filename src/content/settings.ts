@@ -16,8 +16,14 @@ export type Settings = {
     city: string;
     state: string;
     locationNote: string;
+    streetAddress: string;
+    postalCode: string;
+    mailingAddress: string;
     email: string;
     phone: string;
+    facebookUrl: string;
+    textCasterUrl: string;
+    giftCardUrl: string;
   };
   course: {
     holes: 9;
@@ -45,8 +51,14 @@ const settings: Settings = {
     city: "Sabetha",
     state: "KS",
     locationNote: "About 1 mile north of Sabetha, Kansas",
-    email: "TODO: confirm",
-    phone: "TODO: confirm",
+    streetAddress: "2551 X Road",
+    postalCode: "66534",
+    mailingAddress: "P.O. Box 27, Sabetha, KS 66534",
+    email: "sabethacountryclub@gmail.com",
+    phone: "785-284-2023",
+    facebookUrl: "https://www.facebook.com/sabethagolfclub",
+    textCasterUrl: "https://my.textcaster.com/asa/2973",
+    giftCardUrl: "https://squareup.com/gift/NB66KA3K0Y6YT/order",
   },
   course: {
     holes: 9,
