@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HoursList } from "@/components/HoursList";
+import { RatesTable } from "@/components/RatesTable";
 import { getSettings } from "@/content/settings";
 
 const ctas = [
@@ -71,42 +72,9 @@ export default function Home() {
           <h2 id="rates-heading" className="text-xl font-bold">
             Rates
           </h2>
-          <table className="mt-3 w-full max-w-sm text-left">
-            <thead>
-              <tr className="border-b border-stone-300 text-sm text-stone-600">
-                <td></td>
-                <th scope="col" className="py-1 font-medium">
-                  9 holes
-                </th>
-                <th scope="col" className="py-1 font-medium">
-                  18 holes
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row" className="py-1 font-medium">
-                  Weekday
-                </th>
-                <td>${greenFees.weekday[9]}</td>
-                <td>${greenFees.weekday[18]}</td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-1 font-medium">
-                  Weekend
-                </th>
-                <td>${greenFees.weekend[9]}</td>
-                <td>${greenFees.weekend[18]}</td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-1 font-medium">
-                  Cart
-                </th>
-                <td>${cartRental[9]}</td>
-                <td>${cartRental[18]}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="mt-3">
+            <RatesTable greenFees={greenFees} cartRental={cartRental} />
+          </div>
           <p className="mt-3 text-sm">
             <Link href="/golf" className="font-medium text-green-800 underline">
               Course details and rules
