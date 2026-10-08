@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getSettings } from "@/content/settings";
+import { defaultSettings } from "@/content/settings";
 import { dayOfWeek, isIsoDate, todayIn } from "./dates";
 import { maxCartsFor, quoteRound } from "./pricing";
 
 // Sample rates: weekday 9=$20/18=$30, weekend 9=$25/18=$35; cart 9=$15/18=$20.
-const settings = getSettings();
+const settings = defaultSettings;
 const WED = "2026-10-07";
 const SAT = "2026-10-10";
 const SUN = "2026-10-11";

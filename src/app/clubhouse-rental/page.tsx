@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { clubhouseAmenities, rentalRules } from "@/content/clubhouse";
 import { clubhousePhoto } from "@/content/photos";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Clubhouse Rental",
@@ -10,8 +10,8 @@ export const metadata: Metadata = {
     "Rent the Sabetha Golf Club clubhouse for weddings, receptions and parties. Amenities, deposit, rules and how to reserve.",
 };
 
-export default function ClubhouseRentalPage() {
-  const { club, clubhouseRental } = getSettings();
+export default async function ClubhouseRentalPage() {
+  const { club, clubhouseRental } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">

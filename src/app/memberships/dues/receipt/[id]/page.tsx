@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { formatPrice } from "@/content/menu";
 import { installmentLabels } from "@/content/memberships";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { isUuid } from "@/lib/codes";
 import type { Installment } from "@/lib/memberships/dues";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -52,7 +52,7 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
     month: "long",
     day: "numeric",
     year: "numeric",
-    timeZone: getSettings().timeZone,
+    timeZone: (await getSettings()).timeZone,
   });
   const rows = [
     ["Member", data.member_name],

@@ -1,6 +1,6 @@
 "use server";
 
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { roundWindow } from "@/lib/carts/availability";
 import { availableCartCount, cartBalance } from "@/lib/carts/queries";
 import { isUuid, shortCode } from "@/lib/codes";
@@ -18,7 +18,7 @@ export type CartCheck =
 export async function checkCarts(
   input: Pick<PayForm, "playDate" | "arrival" | "arrivalTime" | "holes">,
 ): Promise<CartCheck> {
-  const settings = getSettings();
+  const settings = await getSettings();
   if (input.holes !== 9 && input.holes !== 18) {
     return { ok: false, message: "Pick 9 or 18 holes" };
   }
@@ -78,7 +78,7 @@ export async function payForRound(
     return fail(issue.message, { field: String(issue.path[0]) });
   }
   const form = parsed.data;
-  const settings = getSettings();
+  const settings = await getSettings();
 
   const arrival = resolveArrival(form, {
     timeZone: settings.timeZone,

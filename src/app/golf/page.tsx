@@ -4,7 +4,7 @@ import { PhotoGrid } from "@/components/PhotoGrid";
 import { RatesTable } from "@/components/RatesTable";
 import { clubHistory, courseDescription, golfRules } from "@/content/golf";
 import { courseGallery } from "@/content/photos";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Golf",
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
     "Course details, green fees, cart rental and rules at Sabetha Golf Club, a 9-hole course in Sabetha, Kansas.",
 };
 
-export default function GolfPage() {
-  const { course, greenFees, cartRental } = getSettings();
+export default async function GolfPage() {
+  const { course, greenFees, cartRental } = await getSettings();
 
   const facts = [
     { label: "Holes", value: `${course.holes} (play twice for 18)` },

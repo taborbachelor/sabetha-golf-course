@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Gift Cards",
   description: "Buy a Sabetha Golf Club e-gift card online through Square.",
 };
 
-export default function GiftCardsPage() {
-  const { club } = getSettings();
+export default async function GiftCardsPage() {
+  const { club } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">

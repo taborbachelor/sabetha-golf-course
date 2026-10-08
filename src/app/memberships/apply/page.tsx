@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ApplyForm, type TierOption } from "./ApplyForm";
 
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
     "Apply online to join Sabetha Golf Club. The Club Secretary reviews every application and follows up with current rates.",
 };
 
-export default function ApplyPage() {
-  const { club } = getSettings();
+export default async function ApplyPage() {
+  const { club } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-8">

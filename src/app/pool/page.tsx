@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PhotoGrid } from "@/components/PhotoGrid";
 import { poolPhotos } from "@/content/photos";
 import { poolFacilities, poolRules, poolSeason } from "@/content/pool";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { formatTime } from "@/lib/hours";
 
 export const metadata: Metadata = {
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
     "Sabetha Golf Club pool: season, hours, guest fee and rules. Open Memorial Day weekend through Labor Day.",
 };
 
-export default function PoolPage() {
-  const { pool } = getSettings();
+export default async function PoolPage() {
+  const { pool } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">

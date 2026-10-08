@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getSettings } from "@/content/settings";
+import { defaultSettings } from "@/content/settings";
 import { clubClock, formatTime, isOpenNow, weeklyHours } from "./hours";
 
 // Sample hours: Mon-Tue closed; Wed-Fri 16:30-20:00; Sat 11-20; Sun 11-19.
 // Club time is America/Chicago: CDT (UTC-5) in October, CST (UTC-6) in December.
-const settings = getSettings();
+const settings = defaultSettings;
 const open = (iso: string) => isOpenNow(settings, new Date(iso));
 
 describe("isOpenNow", () => {

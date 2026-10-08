@@ -1,8 +1,10 @@
 /**
  * Placeholder club settings, copied from the current site (sabethagolfclub.com)
  * as of 2026-10-07. SAMPLE DATA: confirm with the club before go-live.
- * These are the seed/fallback values; the `settings` table will replace them.
- * Read via getSettings(); never hardcode prices or hours elsewhere.
+ * These are the defaults: prices, hours and booking limits edited in /admin
+ * are stored in the `settings` table and override them (src/lib/settings).
+ * Read via getSettings() from "@/lib/settings"; never hardcode prices or
+ * hours elsewhere.
  */
 
 export type Holes = 9 | 18;
@@ -59,7 +61,7 @@ export type Settings = {
   kitchenStatus: "open" | "drinks_only" | "closed";
 };
 
-const settings: Settings = {
+export const defaultSettings: Settings = {
   isSample: true,
   club: {
     name: "Sabetha Golf Club",
@@ -107,7 +109,3 @@ const settings: Settings = {
   },
   kitchenStatus: "open",
 };
-
-export function getSettings(): Settings {
-  return settings;
-}

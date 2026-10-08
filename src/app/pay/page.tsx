@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { PayForm } from "./PayForm";
 
 export const metadata: Metadata = {
@@ -8,8 +8,9 @@ export const metadata: Metadata = {
     "Pay your green fees and reserve a cart ahead of time at Sabetha Golf Club, then just show up and play.",
 };
 
-export default function PayPage() {
-  const { greenFees, cartRental, timeZone, bookAheadDays } = getSettings();
+export default async function PayPage() {
+  const { greenFees, cartRental, timeZone, bookAheadDays } =
+    await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-8">

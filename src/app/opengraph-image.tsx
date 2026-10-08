@@ -1,12 +1,12 @@
 import { ImageResponse } from "next/og";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const alt = "Sabetha Golf Club";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
-  const { club, course } = getSettings();
+export default async function OpengraphImage() {
+  const { club, course } = await getSettings();
 
   return new ImageResponse(
     <div

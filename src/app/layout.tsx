@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { allowIndexing, siteUrl } from "@/lib/site";
 import { golfCourseJsonLd } from "@/lib/structuredData";
 import "./globals.css";
@@ -36,8 +36,8 @@ export const metadata: Metadata = {
     : { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  const settings = getSettings();
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const settings = await getSettings();
   const { club, timeZone, clubhouseHours } = settings;
   const jsonLd = golfCourseJsonLd(settings, siteUrl());
 
