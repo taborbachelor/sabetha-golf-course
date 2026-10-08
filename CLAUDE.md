@@ -17,7 +17,8 @@ src/lib/              shared code: payments/ (Square adapter), supabase/ (admin,
 src/content/          settings.ts: placeholder hours, rates, contact (replaced by DB later)
 supabase/migrations/  SQL migrations. The Supabase project is linked to this repo: merging a migration
                       to main APPLIES it to the demo database. Review before merging.
-docs/                 ISSUES.md: Phase 1 task list
+docs/                 ISSUES.md (Phase 1), PHASE2_ISSUES.md (Phase 2 tasks + status), CONTENT_AUDIT.md
+e2e/                  browser end-to-end tests (playwright-core driving installed Edge)
 public/images/        photos (use next/image)
 ```
 
@@ -32,6 +33,9 @@ npm run build        # production build
 npm run format       # Prettier (format:check to verify)
 npm run check:square # one $1.00 Square SANDBOX payment to prove credentials work
 npm run staff:role -- <email> <staff|admin|none>  # grant staff access (create the user in Supabase first)
+npm run db:query -- "<sql>"   # run SQL on the demo DB (SUPABASE_DB_URL); never prints the URL
+npm run db -- db push --yes    # apply + record pending migrations before merging (merge also applies them)
+npm run e2e                    # all browser end-to-end tests (Edge) against localhost; add a URL to target the live site, e.g. npm run e2e:queue -- https://sabetha-golf-course.vercel.app
 ```
 
 Lint, typecheck, test and build must all pass before opening a PR. CI runs the same four on every PR.

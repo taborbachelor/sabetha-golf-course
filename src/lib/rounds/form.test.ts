@@ -59,6 +59,23 @@ describe("resolveArrival", () => {
   });
 });
 
+describe("resolveArrival near midnight", () => {
+  // 11:45pm Wed Oct 7 in Kansas.
+  const late = { ...opts, now: new Date("2026-10-08T04:45:00Z") };
+
+  it("rejects a 'today' arrival that would land after midnight", () => {
+    expect(
+      resolveArrival({ playDate: "2026-10-07", arrival: "30" }, late),
+    ).toMatchObject({ ok: false, field: "arrival" });
+  });
+
+  it("still allows 'now' just before midnight", () => {
+    expect(
+      resolveArrival({ playDate: "2026-10-07", arrival: "now" }, late),
+    ).toMatchObject({ ok: true });
+  });
+});
+
 describe("payFormSchema", () => {
   const valid = {
     playDate: "2026-10-07",
