@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { cartsAvailable, roundWindow } from "@/lib/carts/availability";
+import { defaultSettings } from "@/content/settings";
 import { timeIn, zonedTimeToUtc } from "@/lib/time";
 import { payFormSchema, resolveArrival } from "./form";
 
 const TZ = "America/Chicago";
 // Wed Oct 7 2026, 2:00pm in Kansas (CDT, UTC-5).
 const NOW = new Date("2026-10-07T19:00:00Z");
-const opts = { timeZone: TZ, bookAheadDays: 14, now: NOW };
+const opts = {
+  timeZone: TZ,
+  bookAheadDays: 14,
+  clubhouseHours: defaultSettings.clubhouseHours,
+  now: NOW,
+};
 
 describe("zonedTimeToUtc", () => {
   it("converts Kansas wall time to UTC across DST", () => {
@@ -23,7 +29,11 @@ describe("zonedTimeToUtc", () => {
 describe("resolveArrival", () => {
   it("adds minutes for now / ~15 / ~30 today", () => {
     const r = resolveArrival({ playDate: "2026-10-07", arrival: "15" }, opts);
-    expect(r).toEqual({ ok: true, arriveAt: new Date("2026-10-07T19:15:00Z") });
+    expect(r).toEqual({
+      ok: true,
+      arriveAt: new Date("2026-10-07T19:15:00Z"),
+      anyTime: false,
+    });
   });
 
   it("uses the picked time for later today or another day", () => {
@@ -31,7 +41,11 @@ describe("resolveArrival", () => {
       { playDate: "2026-10-10", arrival: "later", arrivalTime: "09:00" },
       opts,
     );
-    expect(r).toEqual({ ok: true, arriveAt: new Date("2026-10-10T14:00:00Z") });
+    expect(r).toEqual({
+      ok: true,
+      arriveAt: new Date("2026-10-10T14:00:00Z"),
+      anyTime: false,
+    });
   });
 
   it("rejects past dates, past times, far-future dates and 'now' on other days", () => {
@@ -56,6 +70,55 @@ describe("resolveArrival", () => {
     expect(
       resolveArrival({ playDate: "2026-10-08", arrival: "now" }, opts),
     ).toMatchObject({ ok: false, field: "arrival" });
+  });
+});
+
+describe("resolveArrival without a time (paying ahead, walking)", () => {
+  it("files another day at clubhouse opening time as 'any time'", () => {
+    // Sat Oct 10: clubhouse opens 11am (16:00Z).
+    expect(
+      resolveArrival({ playDate: "2026-10-10", arrival: "later" }, opts),
+    ).toEqual({
+      ok: true,
+      arriveAt: new Date("2026-10-10T16:00:00Z"),
+      anyTime: true,
+    });
+  });
+
+  it("uses noon on a day the clubhouse is closed", () => {
+    // Mon Oct 12: closed.
+    expect(
+      resolveArrival({ playDate: "2026-10-12", arrival: "later" }, opts),
+    ).toEqual({
+      ok: true,
+      arriveAt: new Date("2026-10-12T17:00:00Z"),
+      anyTime: true,
+    });
+  });
+
+  it("still needs a time to hold a cart, or for 'Pick a time' today", () => {
+    expect(
+      resolveArrival(
+        { playDate: "2026-10-10", arrival: "later", carts: 1 },
+        opts,
+      ),
+    ).toMatchObject({ ok: false, field: "arrivalTime" });
+    expect(
+      resolveArrival({ playDate: "2026-10-07", arrival: "later" }, opts),
+    ).toMatchObject({ ok: false, field: "arrivalTime" });
+  });
+
+  it("catches a time that has already passed today", () => {
+    expect(
+      resolveArrival(
+        { playDate: "2026-10-07", arrival: "later", arrivalTime: "13:00" },
+        opts,
+      ),
+    ).toMatchObject({
+      ok: false,
+      field: "arrivalTime",
+      message: "That time has passed",
+    });
   });
 });
 
@@ -102,6 +165,28 @@ describe("payFormSchema", () => {
     expect(issues({ phone: "555" })).toContain("phone");
     expect(issues({ email: "nope" })).toContain("email");
     expect(issues({ holes: 10 })).toContain("holes");
+  });
+
+  it("makes email optional, stored as an empty string", () => {
+    for (const email of ["", "   "]) {
+      const r = payFormSchema.safeParse({ ...valid, email });
+      expect(r.success).toBe(true);
+      expect(r.data?.email).toBe("");
+    }
+    expect(
+      payFormSchema.safeParse({ ...valid, email: " pat@example.com " }).data
+        ?.email,
+    ).toBe("pat@example.com");
+  });
+
+  it("only requires a later time when holding a cart", () => {
+    const later = { ...valid, playDate: "2026-10-10", arrival: "later" };
+    expect(payFormSchema.safeParse({ ...later, carts: 0 }).success).toBe(true);
+    expect(
+      payFormSchema
+        .safeParse({ ...later, carts: 1 })
+        .error?.issues.map((i) => i.path[0]),
+    ).toEqual(["arrivalTime"]);
   });
 });
 

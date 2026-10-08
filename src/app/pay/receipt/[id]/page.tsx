@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { Suspense } from "react";
 import { formatPrice } from "@/content/menu";
 import { isUuid } from "@/lib/codes";
+import { isAbandoned } from "@/lib/rounds/checkout";
 import { siteUrl } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,6 +26,8 @@ type Round = {
   name: string;
   arrival_time: string | null;
   amount_cents: number;
+  payment_id: string | null;
+  created_at: string;
 };
 
 export default function ReceiptPage({
@@ -48,26 +51,32 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
   const { data } = await createAdminClient()
     .from("rounds")
     .select(
-      "id, code, status, play_date, holes, players, carts, name, arrival_time, amount_cents",
+      "id, code, status, play_date, holes, players, carts, name, arrival_time, amount_cents, payment_id, created_at",
     )
     .eq("id", id)
     .maybeSingle<Round>();
   if (!data) notFound();
 
   if (data.status !== "paid") {
+    // A checkout still pending after the hold window never finished; its
+    // carts are already back in online inventory.
+    const stale =
+      data.status === "pending" && !data.payment_id && isAbandoned(data);
     return (
       <div>
         <h1 className="text-2xl font-bold">Payment not completed</h1>
         <p className="mt-3">
-          {data.status === "pending"
-            ? "We're still confirming this payment. Refresh in a moment."
-            : "This payment didn't go through, so you weren't charged."}
+          {stale
+            ? "This payment didn't finish. You were not charged — please pay again."
+            : data.status === "pending"
+              ? "We're still confirming this payment. Refresh in a moment."
+              : "This payment didn't go through, so you weren't charged."}
         </p>
         <Link
           href="/pay"
           className="mt-6 inline-block font-medium text-green-800 underline"
         >
-          Back to Pay to Play
+          {stale ? "Pay again" : "Back to Pay to Play"}
         </Link>
       </div>
     );
@@ -114,6 +123,12 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
       <p className="mt-1 text-stone-600">
         Show this code at the clubhouse if anyone asks.
       </p>
+      <p className="mt-3 font-medium">
+        Bookmark or screenshot this page. No email is sent.
+      </p>
+      <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        Demo: test payment. No real card was charged.
+      </p>
 
       <div
         role="img"
@@ -137,9 +152,6 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
           &ldquo;Reserved for {data.name}&rdquo; sign. The key is in the cart.
         </p>
       )}
-      <p className="mt-4 text-sm text-stone-600">
-        Bookmark or screenshot this page. No email is sent.
-      </p>
     </div>
   );
 }

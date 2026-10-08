@@ -9,15 +9,14 @@ export const metadata: Metadata = {
 };
 
 export default async function PayPage() {
-  const { greenFees, cartRental, timeZone, bookAheadDays } =
+  const { greenFees, cartRental, timeZone, bookAheadDays, clubhouseHours } =
     await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 py-8">
       <h1 className="text-3xl font-bold">Pay to Play</h1>
       <p className="mt-2 text-stone-600">
-        Pay ahead, then just show up. No need to stop at the clubhouse or the
-        box at hole #1.
+        Pay here, then head out. Staff check the paid list.
       </p>
       <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
         Demo: payments run in test mode. No real cards are charged.
@@ -28,6 +27,7 @@ export default async function PayPage() {
           cartRental={cartRental}
           timeZone={timeZone}
           bookAheadDays={bookAheadDays}
+          clubhouseHours={clubhouseHours}
         />
       </div>
     </div>
