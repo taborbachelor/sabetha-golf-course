@@ -41,6 +41,10 @@ export type Settings = {
     weekend: Record<Holes, number>;
   };
   cartRental: Record<Holes, number>;
+  /** How long a reserved cart is held, for online cart inventory. SAMPLE. */
+  roundMinutes: Record<Holes, number>;
+  /** How far ahead golfers can pay online. */
+  bookAheadDays: number;
   pool: {
     /** Daily swim fee for a non-member guest (with a member). */
     guestFee: number;
@@ -93,6 +97,8 @@ const settings: Settings = {
     weekend: { 9: 25, 18: 35 },
   },
   cartRental: { 9: 15, 18: 20 },
+  roundMinutes: { 9: 120, 18: 240 },
+  bookAheadDays: 14,
   pool: { guestFee: 4, gatesUnlock: "09:00" },
   clubhouseRental: {
     cleanupDeposit: 100,

@@ -15,7 +15,8 @@ src/app/              routes (App Router)
 src/lib/              shared code: payments/ (Square adapter), supabase/ (admin, server, browser clients),
                       env.ts (validated env), pricing.ts (quoteRound), dates.ts, hours.ts
 src/content/          settings.ts: placeholder hours, rates, contact (replaced by DB later)
-supabase/migrations/  SQL migrations (review before applying)
+supabase/migrations/  SQL migrations. The Supabase project is linked to this repo: merging a migration
+                      to main APPLIES it to the demo database. Review before merging.
 docs/                 ISSUES.md: Phase 1 task list
 public/images/        photos (use next/image)
 ```
