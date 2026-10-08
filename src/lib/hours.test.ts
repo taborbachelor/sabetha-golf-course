@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings } from "@/content/settings";
-import { clubClock, formatTime, isOpenNow, weeklyHours } from "./hours";
+import {
+  clubClock,
+  formatTime,
+  isOpenNow,
+  nextOpening,
+  weeklyHours,
+} from "./hours";
 
 // Sample hours: Mon-Tue closed; Wed-Fri 16:30-20:00; Sat 11-20; Sun 11-19.
 // Club time is America/Chicago: CDT (UTC-5) in October, CST (UTC-6) in December.
@@ -63,5 +69,47 @@ describe("weeklyHours", () => {
       { days: "Sat", hours: "11am–8pm" },
       { days: "Sun", hours: "11am–7pm" },
     ]);
+  });
+});
+
+describe("nextOpening", () => {
+  const next = (iso: string) => nextOpening(settings, new Date(iso));
+
+  it("says today when it opens later today", () => {
+    expect(next("2026-10-07T15:00:00Z")).toBe("today at 4:30pm"); // Wed 10:00
+    expect(next("2026-10-10T14:00:00Z")).toBe("today at 11am"); // Sat 9:00
+  });
+
+  it("is null while open", () => {
+    expect(next("2026-10-07T22:00:00Z")).toBeNull(); // Wed 17:00
+  });
+
+  it("says tomorrow after closing, or the day before an open day", () => {
+    expect(next("2026-10-08T01:00:00Z")).toBe("tomorrow at 4:30pm"); // Wed 20:00
+    expect(next("2026-10-11T02:00:00Z")).toBe("tomorrow at 11am"); // Sat 21:00
+    expect(next("2026-10-06T22:00:00Z")).toBe("tomorrow at 4:30pm"); // Tue 17:00
+  });
+
+  it("names the weekday further out, skipping closed days", () => {
+    expect(next("2026-10-12T00:30:00Z")).toBe("Wednesday at 4:30pm"); // Sun 19:30
+    expect(next("2026-10-05T17:00:00Z")).toBe("Wednesday at 4:30pm"); // Mon 12:00
+  });
+
+  it("handles a club open one day a week, and one with no hours", () => {
+    const wedOnly = {
+      ...settings,
+      clubhouseHours: settings.clubhouseHours.map((h, day) =>
+        day === 3 ? h : null,
+      ),
+    };
+    // Wed 21:00, after closing: a week away.
+    expect(nextOpening(wedOnly, new Date("2026-10-08T02:00:00Z"))).toBe(
+      "next Wednesday at 4:30pm",
+    );
+    const never = {
+      ...settings,
+      clubhouseHours: settings.clubhouseHours.map(() => null),
+    };
+    expect(nextOpening(never, new Date("2026-10-07T15:00:00Z"))).toBeNull();
   });
 });

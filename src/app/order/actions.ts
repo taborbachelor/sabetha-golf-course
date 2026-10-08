@@ -1,14 +1,28 @@
 "use server";
 
 import { isUuid, shortCode } from "@/lib/codes";
-import { orderSchema, priceOrder, type OrderStatus } from "@/lib/orders/order";
+import {
+  orderSchema,
+  priceOrder,
+  type OrderStatus,
+  type UnavailableItem,
+} from "@/lib/orders/order";
 import { getOrderingState } from "@/lib/orders/state";
 import { getPayments } from "@/lib/payments";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type OrderResult =
   | { ok: true; orderId: string }
-  | { ok: false; message: string; field?: string; declined?: boolean };
+  | {
+      ok: false;
+      message: string;
+      field?: string;
+      declined?: boolean;
+      /** Ordering stopped since the page loaded (refresh to show why). */
+      closed?: boolean;
+      /** Items in the order that can't be ordered right now. */
+      unavailable?: UnavailableItem[];
+    };
 
 const PAID: OrderStatus[] = [
   "new",
@@ -42,10 +56,11 @@ export async function placeOrder(
   const order = parsed.data;
 
   const state = await getOrderingState();
-  if (!state.accepting) return fail(state.closedReason!);
+  if (!state.accepting) return fail(state.closedReason!, { closed: true });
 
   const priced = priceOrder(order.items, state.menu, state.kitchen);
-  if (!priced.ok) return fail(priced.message);
+  if (!priced.ok)
+    return fail(priced.message, { unavailable: priced.unavailable });
 
   const db = createAdminClient();
   const existing = await db

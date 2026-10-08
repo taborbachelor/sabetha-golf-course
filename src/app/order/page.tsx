@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HoursList } from "@/components/HoursList";
 import { getSettings } from "@/lib/settings";
+import { nextOpening } from "@/lib/hours";
 import { getOrderingState } from "@/lib/orders/state";
+import { CallClubhouse } from "./CallClubhouse";
 import { OrderForm } from "./OrderForm";
 
 export const metadata: Metadata = {
@@ -40,9 +42,39 @@ function parseHole(value: string | string[] | undefined): number | null {
 }
 
 async function OrderLoader({ hole }: { hole: number | null }) {
-  const state = await getOrderingState();
+  const [state, settings] = await Promise.all([
+    getOrderingState(),
+    getSettings(),
+  ]);
+  const phone = settings.club.phone;
+
+  if (state.closedBecause === "hours") {
+    const opening = nextOpening(settings, new Date());
+    return (
+      <div className="space-y-4">
+        <div role="status" className="rounded-lg bg-stone-100 px-4 py-3">
+          <p className="font-medium">{state.closedReason}</p>
+          {opening && (
+            <p className="mt-1 text-lg font-bold">Ordering opens {opening}.</p>
+          )}
+        </div>
+        <p className="text-stone-700">
+          Questions? <CallClubhouse phone={phone} />
+        </p>
+        <section aria-labelledby="order-hours-heading">
+          <h2 id="order-hours-heading" className="font-bold">
+            Clubhouse hours
+          </h2>
+          <div className="mt-2">
+            <HoursList clubhouseHours={settings.clubhouseHours} />
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (!state.accepting) {
+    // The clubhouse is open; staff have switched ordering off for now.
     return (
       <div className="space-y-4">
         <p
@@ -51,14 +83,10 @@ async function OrderLoader({ hole }: { hole: number | null }) {
         >
           {state.closedReason}
         </p>
-        <section aria-labelledby="order-hours-heading">
-          <h2 id="order-hours-heading" className="font-bold">
-            Clubhouse hours
-          </h2>
-          <div className="mt-2">
-            <HoursList clubhouseHours={(await getSettings()).clubhouseHours} />
-          </div>
-        </section>
+        <p className="text-stone-700">
+          Food and drinks are still at the clubhouse. Need something brought
+          out? <CallClubhouse phone={phone} />
+        </p>
       </div>
     );
   }
@@ -74,6 +102,7 @@ async function OrderLoader({ hole }: { hole: number | null }) {
         items={state.orderable}
         initialHole={hole}
         drinksOnly={state.kitchen === "drinks_only"}
+        clubPhone={phone}
       />
     </>
   );
