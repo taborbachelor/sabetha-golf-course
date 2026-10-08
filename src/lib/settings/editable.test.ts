@@ -25,7 +25,9 @@ describe("mergeSettings", () => {
       },
       { key: "pool_guest_fee", value: 5 },
       { key: "book_ahead_days", value: 7 },
+      { key: "delivery_minutes", value: { min: 5, max: 15 } },
     ]);
+    expect(merged.deliveryMinutes).toEqual({ min: 5, max: 15 });
     expect(merged.greenFees.weekday[9]).toBe(22);
     expect(merged.greenFees.weekend[18]).toBe(37);
     expect(merged.pool).toEqual({ ...defaultSettings.pool, guestFee: 5 });
@@ -39,6 +41,8 @@ describe("mergeSettings", () => {
       { key: "pool_guest_fee", value: 4.5 },
       { key: "clubhouse_hours", value: [null, null] },
       { key: "kitchen_status", value: "closed" },
+      { key: "delivery_minutes", value: { min: 20, max: 10 } },
+      { key: "book_ahead_days", value: 90 },
     ]);
     expect(merged).toEqual(defaultSettings);
   });

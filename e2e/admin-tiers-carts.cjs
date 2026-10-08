@@ -40,6 +40,7 @@ async function tierCard(page) {
 (async () => {
   let adminId;
   let addedCart;
+  let maxBefore;
   const b = await chromium.launch({ channel: "msedge", headless: true });
   try {
     const password = randomBytes(18).toString("base64url");
@@ -87,6 +88,10 @@ async function tierCard(page) {
     );
 
     const row = ap.locator("li", { hasText: TIER });
+    console.log(
+      "3 list row with order number:",
+      (await row.locator("summary").innerText()).replace(/\s+/g, " "),
+    );
     await row.locator("summary").click();
     const edit = row.locator("form");
     await edit.getByLabel("Yearly dues").fill("375");
@@ -130,13 +135,35 @@ async function tierCard(page) {
           .innerText()
       ).replace(/\s+/g, " ");
     const before = await count();
-    await ap.getByRole("button", { name: "Add a cart" }).click();
+    const { data: lastCart } = await db
+      .from("carts")
+      .select("number")
+      .order("number", { ascending: false })
+      .limit(1)
+      .single();
+    maxBefore = lastCart.number;
+    // A double click adds one cart, not two.
+    await ap.getByRole("button", { name: "Add a cart" }).dblclick();
     const added = await ap
       .getByRole("status")
       .filter({ hasText: "Added cart" })
       .innerText({ timeout: 30000 });
     addedCart = Number(added.match(/\d+/)[0]);
-    console.log("7 add:", before, "->", await count(), "|", added);
+    await ap.waitForTimeout(2000);
+    const { count: newCarts } = await db
+      .from("carts")
+      .select("id", { count: "exact", head: true })
+      .gt("number", maxBefore);
+    console.log(
+      "7 add (double click):",
+      before,
+      "->",
+      await count(),
+      "|",
+      added,
+      "| carts created:",
+      newCarts,
+    );
 
     const { data: cart } = await db
       .from("carts")
@@ -151,10 +178,24 @@ async function tierCard(page) {
       source: "walkin",
     });
     await ap.reload();
-    const card = ap.locator("li", { hasText: `Cart ${addedCart}` });
-    await card.getByRole("button", { name: "Take out of service" }).click();
-    console.log("8 in use:", await ap.locator("p[role=alert]").innerText());
+    const card = ap.getByRole("listitem", {
+      name: `Cart ${addedCart}`,
+      exact: true,
+    });
+    console.log(
+      "8 in use: button disabled",
+      await card
+        .getByRole("button", { name: "Take out of service" })
+        .isDisabled(),
+      "|",
+      (await card.innerText()).replace(/\s+/g, " "),
+    );
+    await ap.screenshot({
+      path: `${shotDir}/admin-carts-in-use.png`,
+      fullPage: true,
+    });
     await db.from("cart_sessions").delete().eq("cart_id", cart.id);
+    await ap.reload();
 
     await card.getByRole("button", { name: "Take out of service" }).click();
     await card
@@ -191,13 +232,13 @@ async function tierCard(page) {
       console.log(
         "WARNING: deleted the test type directly; /memberships may show it until the next save",
       );
-    if (addedCart) {
-      const { data: cart } = await db
+    if (maxBefore !== undefined) {
+      // Every cart this test added (one, or two if the double click got through).
+      const { data: carts } = await db
         .from("carts")
         .select("id")
-        .eq("number", addedCart)
-        .maybeSingle();
-      if (cart) {
+        .gt("number", maxBefore);
+      for (const cart of carts ?? []) {
         await db.from("cart_sessions").delete().eq("cart_id", cart.id);
         await db.from("carts").delete().eq("id", cart.id);
       }

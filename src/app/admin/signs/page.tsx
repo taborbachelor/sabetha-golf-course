@@ -150,6 +150,9 @@ async function PaySign({ url }: { url: string }) {
           out.
           {isSample && " Sample prices."}
         </p>
+        <p className="mt-1 text-base font-semibold">
+          No signal? Use the box as before.
+        </p>
       </div>
     </SignPage>
   );
@@ -174,6 +177,9 @@ async function TeeSign({ hole, url }: { hole: number; url: string }) {
         <p className="mt-3 text-2xl">
           Scan for food and drinks from the clubhouse, brought out to you.
         </p>
+        <p className="mt-2 text-xl text-stone-600">
+          Available while the clubhouse is open
+        </p>
       </div>
     </SignPage>
   );
@@ -195,6 +201,9 @@ async function CartStickers({ url }: { url: string }) {
               className="w-[60%]"
             />
             <p className="text-sm">Scan, pick your hole, we bring it out.</p>
+            <p className="text-xs text-stone-600">
+              Available while the clubhouse is open
+            </p>
           </div>
         ))}
       </div>

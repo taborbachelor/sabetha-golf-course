@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MenuRow } from "@/lib/orders/order";
 import { parseDollars } from "@/lib/money";
-import { menuItemFromForm } from "./form";
+import { defaultKind, menuItemFromForm } from "./form";
 import { groupMenu } from "./group";
 
 describe("parseDollars", () => {
@@ -83,5 +83,38 @@ describe("groupMenu", () => {
         ["Drinks", ["Water", "Soda"]],
       ],
     );
+  });
+});
+
+describe("defaultKind", () => {
+  it("starts items in drink-like sections as drinks", () => {
+    for (const s of [
+      "Drinks",
+      "drinks",
+      "Cold drinks",
+      "Beverages",
+      "Beer & seltzers",
+      "Bar",
+      "Soda pop",
+      "Wine",
+    ]) {
+      expect(defaultKind(s), s).toBe("drink");
+    }
+  });
+
+  it("starts everything else as food", () => {
+    for (const s of [
+      "",
+      "Lunch",
+      "Fryer",
+      "Quick bites",
+      "Kids",
+      "Dinner",
+      "Barbecue",
+      "Popcorn",
+      "Steak",
+    ]) {
+      expect(defaultKind(s), s).toBe("food");
+    }
   });
 });

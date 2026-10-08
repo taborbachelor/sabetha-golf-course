@@ -37,6 +37,14 @@ async function onMenu(page) {
     : "(not shown)";
 }
 
+/** True if the page's beforeunload handler would ask before leaving. */
+const warnsOnLeave = (page) =>
+  page.evaluate(() => {
+    const e = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  });
+
 (async () => {
   let adminId;
   const b = await chromium.launch({ channel: "msedge", headless: true });
@@ -66,8 +74,12 @@ async function onMenu(page) {
       .locator("form");
     await add.getByLabel("Name").fill(ITEM);
     await add.getByLabel("Section").fill("Drinks");
+    // Typed under "Drinks", so it starts as a drink without touching Type.
+    console.log(
+      "1 kind defaults from section: Drink checked =",
+      await add.getByLabel("Drink").isChecked(),
+    );
     await add.getByLabel("Price").fill("two fifty");
-    await add.getByLabel("Drink").check();
     await add.getByLabel("Sample").check();
     await add.getByRole("button", { name: "Add item" }).click();
     console.log("1 bad price:", await add.getByRole("alert").innerText());
@@ -86,14 +98,31 @@ async function onMenu(page) {
 
     const pub = await b.newPage({ viewport: { width: 390, height: 844 } });
     console.log("3 /menu:", await onMenu(pub));
+    const summary = ap.locator("li", { hasText: ITEM }).locator("summary");
+    console.log(
+      "3 list row (type badge + order number):",
+      (await summary.innerText()).replace(/\s+/g, " "),
+    );
+    console.log(
+      "3 a food row:",
+      (
+        await ap
+          .locator("li", { hasText: "Hot Dog" })
+          .locator("summary")
+          .innerText()
+      ).replace(/\s+/g, " "),
+    );
 
     // 2. Change the price, then hide it.
     const editRow = ap.locator("li", { hasText: ITEM });
     await editRow.locator("summary").click();
     const edit = editRow.locator("form");
     await edit.getByLabel("Price").fill("2.75");
+    // Unsaved edit: leaving the page would ask first.
+    console.log("4 unsaved edit warns on leave:", await warnsOnLeave(ap));
     await edit.getByRole("button", { name: "Save" }).click();
     await edit.getByRole("status").waitFor({ timeout: 30000 });
+    console.log("4 after save, warns on leave:", await warnsOnLeave(ap));
     console.log("4 /menu after price change:", await onMenu(pub));
 
     await edit.getByLabel("On the menu").uncheck();

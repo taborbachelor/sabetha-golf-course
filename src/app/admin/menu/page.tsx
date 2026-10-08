@@ -41,7 +41,8 @@ async function MenuAdmin() {
         Changes show on the Menu page and in Order to the Course right away.
         Untick <span className="font-medium">On the menu</span> to hide an item
         for now (sold out, seasonal). <span className="font-medium">Drink</span>{" "}
-        items can still be ordered when the kitchen is set to Drinks only.
+        items can still be ordered when the kitchen is set to Drinks only. The
+        small grey number is each item&apos;s order: lower numbers show first.
       </p>
 
       <details className="rounded-lg border border-green-800 bg-white p-4">
@@ -67,11 +68,19 @@ async function MenuAdmin() {
                       {item.name}
                     </span>
                     {item.is_alcohol && <Badge>21+</Badge>}
-                    {!item.is_food && <Badge>Drink</Badge>}
+                    <Badge>{item.is_food ? "Food" : "Drink"}</Badge>
                     {item.is_sample && <Badge>Sample</Badge>}
                     {!item.available && <Badge>Hidden</Badge>}
-                    <span className="ml-auto tabular-nums">
-                      {formatPrice(item.price_cents)}
+                    <span className="ml-auto flex items-baseline gap-3">
+                      <span
+                        className="text-xs text-stone-400 tabular-nums"
+                        title="Order on menu"
+                      >
+                        #{item.sort_order}
+                      </span>
+                      <span className="tabular-nums">
+                        {formatPrice(item.price_cents)}
+                      </span>
                     </span>
                   </summary>
                   <div className="mt-4">

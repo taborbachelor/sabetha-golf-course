@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getStaffUser } from "@/lib/auth";
-import { isIsoDate, todayIn } from "@/lib/dates";
+import { todayIn } from "@/lib/dates";
+import { parseExportRange } from "@/lib/export/range";
 import { EXPORTS, buildExport, type ExportKind } from "@/lib/export/reports";
 import { getSettings } from "@/lib/settings";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -23,22 +24,38 @@ export async function GET(
   if (!(kind in EXPORTS)) return new Response("Not found", { status: 404 });
 
   const { timeZone } = await getSettings();
-  const today = todayIn(timeZone);
   const params = request.nextUrl.searchParams;
-  const from = params.get("from") || `${today.slice(0, 8)}01`;
-  const to = params.get("to") || today;
-  if (!isIsoDate(from) || !isIsoDate(to) || from > to) {
-    return new Response("Use from/to dates like 2026-10-01, with from <= to", {
-      status: 400,
-    });
+  const parsed = parseExportRange(
+    params.get("from"),
+    params.get("to"),
+    todayIn(timeZone),
+  );
+  if (!parsed.ok) {
+    // Back to the form with the reason, not a bare error page.
+    const back = new URL("/admin/export", request.nextUrl);
+    for (const key of ["from", "to"]) {
+      const value = params.get(key);
+      if (value) back.searchParams.set(key, value);
+    }
+    back.searchParams.set("error", parsed.message);
+    return Response.redirect(back, 303);
   }
+  const { from, to } = parsed.range;
 
-  const { csv } = await buildExport(
+  const { csv, count } = await buildExport(
     await createServerSupabase(),
     kind as ExportKind,
     { from, to },
     timeZone,
   );
+
+  // ?count=1: how many rows the file would have, so the form can say so.
+  if (params.get("count") === "1") {
+    return Response.json(
+      { count },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
 
   // The byte-order mark makes Excel read names with accents correctly.
   const BOM = String.fromCharCode(0xfeff);

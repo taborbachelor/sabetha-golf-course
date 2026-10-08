@@ -15,6 +15,18 @@ export const menuItemSchema = z.object({
 
 export type MenuItemInput = z.infer<typeof menuItemSchema>;
 
+/**
+ * The type a new item probably is, from the section typed for it: items
+ * added under "Drinks", "Beer & seltzers" or "Bar" start as drinks (they can
+ * still be ordered when the kitchen is Drinks only). The admin can change it.
+ */
+export function defaultKind(section: string): "food" | "drink" {
+  return DRINK_SECTION.test(section) ? "drink" : "food";
+}
+
+const DRINK_SECTION =
+  /\b(drinks?|beverages?|beers?|seltzers?|sodas?|pop|wines?|cocktails?|bar|coffee|tea|water)\b/i;
+
 export function menuItemFromForm(formData: FormData) {
   const text = (key: string) => String(formData.get(key) ?? "");
   const on = (key: string) => formData.get(key) === "on";

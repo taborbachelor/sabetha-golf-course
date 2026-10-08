@@ -1,8 +1,11 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
-import type { EditableSettings } from "@/lib/settings/editable";
+import Link from "next/link";
+import { startTransition, useActionState, useEffect, useRef } from "react";
+import type { PricesHours } from "@/lib/settings/form";
+import { useUnsavedChanges } from "../useUnsavedChanges";
 import { saveSettings, type SaveState } from "./actions";
+import { focusField } from "./focusField";
 
 const DAYS = [
   "Sunday",
@@ -14,16 +17,25 @@ const DAYS = [
   "Saturday",
 ];
 
-export function SettingsForm({ values }: { values: EditableSettings }) {
+export function SettingsForm({ values }: { values: PricesHours }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(
     saveSettings,
     {},
   );
+  const { onChange } = useUnsavedChanges(state);
+  const form = useRef<HTMLFormElement>(null);
   const errorFor = (key: string) =>
     state.key === key ? state.message : undefined;
 
+  // Take the admin to the box that needs fixing.
+  useEffect(() => {
+    if (state.field && form.current) focusField(form.current, state.field);
+  }, [state]);
+
   return (
     <form
+      ref={form}
+      onChange={onChange}
       // Submitted by hand so React doesn't reset the fields: a failed save
       // keeps the admin's edits on screen.
       onSubmit={(e) => {
@@ -159,6 +171,18 @@ export function SettingsForm({ values }: { values: EditableSettings }) {
             className={`rounded-lg px-4 py-3 ${state.ok ? "bg-green-50 text-green-900" : "bg-red-50 text-red-800"}`}
           >
             {state.message}
+            {state.signsStale && (
+              <span className="mt-1 block">
+                The hole #1 sign shows these prices — reprint it from{" "}
+                <Link
+                  href="/admin/signs?sheet=hole1"
+                  className="font-medium underline"
+                >
+                  QR signs
+                </Link>
+                .
+              </span>
+            )}
           </p>
         )}
         <button
