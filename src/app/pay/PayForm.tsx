@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   useTransition,
@@ -18,7 +20,9 @@ import {
   type PayForm as Fields,
 } from "@/lib/rounds/form";
 import { addDays } from "@/lib/time";
-import { checkCarts, type CartCheck } from "./actions";
+import { useRouter } from "next/navigation";
+import { SquareCard, type TokenizeFn } from "@/components/SquareCard";
+import { checkCarts, payForRound, type CartCheck } from "./actions";
 
 type Props = Pick<
   Settings,
@@ -119,19 +123,60 @@ export function PayForm(settings: Props) {
   ]);
   const ready = readyKey === formKey;
 
+  const formValues = {
+    playDate,
+    holes,
+    players,
+    carts,
+    arrival,
+    arrivalTime: arrival === "later" ? arrivalTime : undefined,
+    name,
+    phone,
+    email,
+  };
+
+  const router = useRouter();
+  const tokenize = useRef<TokenizeFn | null>(null);
+  const checkoutId = useRef<string | null>(null);
+  const [cardReady, setCardReady] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const onCardReady = useCallback((fn: TokenizeFn | null) => {
+    tokenize.current = fn;
+    setCardReady(!!fn);
+  }, []);
+
+  async function onPay() {
+    if (!tokenize.current || paying) return;
+    setPaying(true);
+    setPayError(null);
+    const card = await tokenize.current();
+    if (!card.ok) {
+      setPayError(card.message);
+      setPaying(false);
+      return;
+    }
+    // One ID per attempt: a double-tap or retry of the same attempt never charges twice.
+    checkoutId.current ??= crypto.randomUUID();
+    const result = await payForRound(
+      checkoutId.current,
+      formValues,
+      card.token,
+    );
+    if (result.ok) {
+      router.push(`/pay/receipt/${result.receiptId}`);
+      return;
+    }
+    // A failed attempt is cancelled on the server; the next try is a new attempt.
+    checkoutId.current = null;
+    if (result.field) setErrors({ [result.field]: result.message });
+    setPayError(result.message);
+    setPaying(false);
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = payFormSchema.safeParse({
-      playDate,
-      holes,
-      players,
-      carts,
-      arrival,
-      arrivalTime: arrival === "later" ? arrivalTime : undefined,
-      name,
-      phone,
-      email,
-    });
+    const parsed = payFormSchema.safeParse(formValues);
     if (!parsed.success) {
       const next: Errors = {};
       for (const issue of parsed.error.issues) {
@@ -313,21 +358,41 @@ export function PayForm(settings: Props) {
         </section>
       )}
 
-      <button
-        type="submit"
-        disabled={cartsShort || checking}
-        className="w-full rounded-xl bg-green-800 px-5 py-4 text-lg font-bold text-white hover:bg-green-900 disabled:bg-stone-400"
-      >
-        Continue to payment
-      </button>
-      {ready && (
-        <p
-          role="status"
-          className="rounded-lg bg-green-50 px-4 py-3 text-green-900"
+      {!ready && (
+        <button
+          type="submit"
+          disabled={cartsShort || checking}
+          className="w-full rounded-xl bg-green-800 px-5 py-4 text-lg font-bold text-white hover:bg-green-900 disabled:bg-stone-400"
         >
-          Everything checks out. Online payment is the next step and is coming
-          soon; for now, pay at the clubhouse or the box at hole #1.
-        </p>
+          Continue to payment
+        </button>
+      )}
+      {ready && quote && (
+        <section aria-labelledby="card-heading" className="space-y-4">
+          <h2 id="card-heading" className="text-lg font-bold">
+            Card
+          </h2>
+          <SquareCard onReady={onCardReady} />
+          {payError && (
+            <p
+              role="alert"
+              className="rounded-lg bg-red-50 px-4 py-3 text-red-800"
+            >
+              {payError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={onPay}
+            disabled={!cardReady || paying}
+            className="w-full rounded-xl bg-green-800 px-5 py-4 text-lg font-bold text-white hover:bg-green-900 disabled:bg-stone-400"
+          >
+            {paying ? "Paying…" : `Pay ${formatPrice(quote.totalCents)}`}
+          </button>
+          <p className="text-center text-sm text-stone-500">
+            Test mode: use card 4111 1111 1111 1111, any future date, CVV 111.
+          </p>
+        </section>
       )}
     </form>
   );

@@ -1,7 +1,7 @@
 import "server-only";
 import type { Holes, Settings } from "@/content/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cartsAvailable, type HeldCart, type Window } from "./availability";
+import { overlaps, type HeldCart, type Window } from "./availability";
 
 type SessionRow = {
   holes: Holes;
@@ -10,8 +10,12 @@ type SessionRow = {
   out_at: string | null;
 };
 
-/** How many carts can still be reserved online for `window`. */
-export async function availableCartCount(
+/**
+ * Active carts minus carts held during `window`. Can go negative when two
+ * checkouts race for the last cart; checkout re-checks after holding carts
+ * and backs out if so.
+ */
+export async function cartBalance(
   window: Window,
   roundMinutes: Settings["roundMinutes"],
 ): Promise<number> {
@@ -43,5 +47,13 @@ export async function availableCartCount(
     return [{ start, end }];
   });
 
-  return cartsAvailable(carts.count ?? 0, held, window);
+  return (carts.count ?? 0) - held.filter((h) => overlaps(h, window)).length;
+}
+
+/** How many carts can still be reserved online for `window`. */
+export async function availableCartCount(
+  window: Window,
+  roundMinutes: Settings["roundMinutes"],
+): Promise<number> {
+  return Math.max(0, await cartBalance(window, roundMinutes));
 }
