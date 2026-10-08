@@ -33,9 +33,9 @@ Each item is one small PR, merged when CI and the Vercel preview pass. Square st
 9. **Membership application**: online form saved to the database; listed in admin for the Club Secretary. _Done when:_ an application appears in admin.
    - Status: ✅ `/memberships/apply` → on-screen confirmation; `/admin` lists applications with Approve / Decline (admin role only). `npm run e2e:apply`.
 10. **Dues payment**: pay in full or first/second half against a tier, referenced by name/email. _Done when:_ a sandbox dues payment is recorded.
-    - Status: ⏭️ Next
+    - Status: ✅ `/memberships/dues`: pick tier, in full / first half / second half (amount from the tier price, halves add up to the year), member name + email, Square sandbox card, on-screen receipt. Listed under Dues payments in `/admin`. `npm run e2e:dues`.
 11. **Admin**: edit prices, hours, menu items, cart count, membership tiers and kitchen default; settings move from `src/content/settings.ts` to the database (cached, refreshed on save); CSV export of rounds and orders. _Done when:_ changing a price in admin changes it on the public site.
-    - Status: ⏳
+    - Status: ⏭️ Next
 12. **Honor-box QR signs**: printable QR sheets for hole #1 (Pay to Play), carts and tee boxes (Order to the Course, with hole number). _Done when:_ the sheets print cleanly and the codes open the right pages.
     - Status: ⏳
 13. **End-to-end demo check**: run the Phase 2 "done when" on the deployed site with a phone and a tablet-sized browser; fix anything that breaks. _Done when:_ the full walkthrough passes and is written up for the pitch.
@@ -43,4 +43,4 @@ Each item is one small PR, merged when CI and the Vercel preview pass. Square st
 
 ## Progress (2026-10-08)
 
-Tasks 1–9 are merged and verified on the deployed site with `npm run e2e` (sandbox payments, temporary users, cleanup afterwards). Paying for a round with a cart and ordering a drink to a hole both work end to end. Next: task 10 (dues payment).
+Tasks 1–10 are merged and verified on the deployed site with `npm run e2e` (sandbox payments, temporary users, cleanup afterwards). Paying for a round with a cart and ordering a drink to a hole both work end to end. Next: task 11 (admin settings).

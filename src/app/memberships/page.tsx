@@ -103,6 +103,14 @@ export default function MembershipsPage() {
             <li key={item}>{item}</li>
           ))}
         </ul>
+        <p className="mt-4">
+          <Link
+            href="/memberships/dues"
+            className="inline-block rounded-lg border border-green-800 px-5 py-3 font-semibold text-green-800 hover:bg-green-50"
+          >
+            Pay dues online
+          </Link>
+        </p>
       </section>
 
       <section aria-labelledby="perks-heading" className="mt-10">
