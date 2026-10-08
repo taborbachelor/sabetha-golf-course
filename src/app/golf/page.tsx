@@ -1,8 +1,84 @@
 import type { Metadata } from "next";
-import { StubPage } from "@/components/StubPage";
+import Link from "next/link";
+import { RatesTable } from "@/components/RatesTable";
+import { courseDescription, golfRules } from "@/content/golf";
+import { getSettings } from "@/content/settings";
 
-export const metadata: Metadata = { title: "Golf" };
+export const metadata: Metadata = {
+  title: "Golf",
+  description:
+    "Course details, green fees, cart rental and rules at Sabetha Golf Club, a 9-hole course in Sabetha, Kansas.",
+};
 
-export default function Page() {
-  return <StubPage title="Golf" />;
+export default function GolfPage() {
+  const { course, greenFees, cartRental } = getSettings();
+
+  const facts = [
+    { label: "Holes", value: `${course.holes} (play twice for 18)` },
+    { label: "Length", value: `${course.yards.toLocaleString("en-US")} yards` },
+    { label: "Tees", value: course.tees.join(" and ") },
+    { label: "Built", value: String(course.built) },
+  ];
+
+  return (
+    <div className="mx-auto w-full max-w-3xl px-4 py-10">
+      <h1 className="text-3xl font-bold">Golf</h1>
+
+      <section aria-labelledby="course-heading" className="mt-6">
+        <h2 id="course-heading" className="sr-only">
+          The course
+        </h2>
+        {courseDescription.map((p) => (
+          <p key={p} className="mt-3 first:mt-0">
+            {p}
+          </p>
+        ))}
+        <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {facts.map((f) => (
+            <div key={f.label} className="rounded-lg bg-stone-100 p-3">
+              <dt className="text-sm text-stone-600">{f.label}</dt>
+              <dd className="font-semibold">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section aria-labelledby="fees-heading" className="mt-10">
+        <h2 id="fees-heading" className="text-xl font-bold">
+          Green fees and carts
+        </h2>
+        <p className="mt-2 text-stone-600">
+          Guests don&apos;t need a member to play.
+        </p>
+        <div className="mt-3">
+          <RatesTable greenFees={greenFees} cartRental={cartRental} />
+        </div>
+        <div className="mt-4 rounded-lg border border-green-800/20 bg-green-50 p-4">
+          <p className="font-medium">Where to pay</p>
+          <p className="mt-1">
+            Non-members pay at the clubhouse when it&apos;s open. When it&apos;s
+            closed, register and pay at the box at hole #1.
+          </p>
+          <p className="mt-2 text-sm">
+            Online pay-ahead is{" "}
+            <Link href="/pay" className="font-medium text-green-800 underline">
+              coming soon
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="rules-heading" className="mt-10">
+        <h2 id="rules-heading" className="text-xl font-bold">
+          Course rules
+        </h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5">
+          {golfRules.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
 }
