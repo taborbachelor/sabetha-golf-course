@@ -41,6 +41,11 @@ export type Settings = {
     weekend: Record<Holes, number>;
   };
   cartRental: Record<Holes, number>;
+  pool: {
+    /** Daily swim fee for a non-member guest (with a member). */
+    guestFee: number;
+    gatesUnlock: string; // "HH:MM"
+  };
   kitchenStatus: "open" | "drinks_only" | "closed";
 };
 
@@ -82,6 +87,7 @@ const settings: Settings = {
     weekend: { 9: 25, 18: 35 },
   },
   cartRental: { 9: 15, 18: 20 },
+  pool: { guestFee: 4, gatesUnlock: "09:00" },
   kitchenStatus: "open",
 };
 
