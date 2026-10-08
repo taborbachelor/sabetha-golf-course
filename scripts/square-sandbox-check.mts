@@ -12,7 +12,7 @@ import { createSquareProvider } from "../src/lib/payments/square.ts";
 
 const env: Record<string, string> = {};
 for (const line of readFileSync(".env.local", "utf8")
-  .replace(/^﻿/, "")
+  .replace(new RegExp(`^${String.fromCharCode(0xfeff)}`), "") // strip a BOM
   .split(/\r?\n/)) {
   const m = /^([A-Z_]+)=(.*)$/.exec(line);
   if (m) env[m[1]] = m[2].trim().replace(/^['"]|['"]$/g, "");

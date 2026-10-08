@@ -11,7 +11,8 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:square": "node --no-warnings scripts/square-sandbox-check.mts"
+    "check:square": "node --no-warnings scripts/square-sandbox-check.mts",
+    "staff:role": "node --no-warnings scripts/set-staff-role.mts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
