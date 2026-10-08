@@ -36,3 +36,43 @@ export function isOpenNow(settings: HoursSettings, date: Date): boolean {
   if (!hours) return false;
   return minutes >= toMinutes(hours.open) && minutes < toMinutes(hours.close);
 }
+
+/** "16:30" -> "4:30pm", "11:00" -> "11am". */
+export function formatTime(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const suffix = h < 12 ? "am" : "pm";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0
+    ? `${hour12}${suffix}`
+    : `${hour12}:${String(m).padStart(2, "0")}${suffix}`;
+}
+
+export type HoursRow = { days: string; hours: string };
+
+/**
+ * Week schedule for display, Monday first, with consecutive days that share
+ * the same hours merged: [{ days: "Mon–Tue", hours: "Closed" }, ...].
+ */
+export function weeklyHours(
+  clubhouseHours: Settings["clubhouseHours"],
+): HoursRow[] {
+  const mondayFirst = [1, 2, 3, 4, 5, 6, 0];
+  const label = (day: number) => {
+    const h = clubhouseHours[day];
+    return h ? `${formatTime(h.open)}–${formatTime(h.close)}` : "Closed";
+  };
+
+  const rows: { first: number; last: number; hours: string }[] = [];
+  for (const day of mondayFirst) {
+    const hours = label(day);
+    const prev = rows.at(-1);
+    if (prev && prev.hours === hours) prev.last = day;
+    else rows.push({ first: day, last: day, hours });
+  }
+
+  return rows.map(({ first, last, hours }) => ({
+    days:
+      first === last ? WEEKDAYS[first] : `${WEEKDAYS[first]}–${WEEKDAYS[last]}`,
+    hours,
+  }));
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getSettings } from "@/content/settings";
-import { clubClock, isOpenNow } from "./hours";
+import { clubClock, formatTime, isOpenNow, weeklyHours } from "./hours";
 
 // Sample hours: Mon-Tue closed; Wed-Fri 16:30-20:00; Sat 11-20; Sun 11-19.
 // Club time is America/Chicago: CDT (UTC-5) in October, CST (UTC-6) in December.
@@ -43,5 +43,25 @@ describe("clubClock", () => {
     expect(
       clubClock(new Date("2026-10-08T05:00:00Z"), "America/Chicago"),
     ).toEqual({ day: 4, minutes: 0 });
+  });
+});
+
+describe("formatTime", () => {
+  it("drops :00 and uses am/pm", () => {
+    expect(formatTime("11:00")).toBe("11am");
+    expect(formatTime("16:30")).toBe("4:30pm");
+    expect(formatTime("12:00")).toBe("12pm");
+    expect(formatTime("00:15")).toBe("12:15am");
+  });
+});
+
+describe("weeklyHours", () => {
+  it("starts Monday and merges days with the same hours", () => {
+    expect(weeklyHours(settings.clubhouseHours)).toEqual([
+      { days: "Mon–Tue", hours: "Closed" },
+      { days: "Wed–Fri", hours: "4:30pm–8pm" },
+      { days: "Sat", hours: "11am–8pm" },
+      { days: "Sun", hours: "11am–7pm" },
+    ]);
   });
 });
