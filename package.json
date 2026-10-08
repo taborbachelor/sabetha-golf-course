@@ -26,7 +26,8 @@
     "e2e:menu": "node e2e/admin-menu.cjs",
     "e2e:tiers": "node e2e/admin-tiers-carts.cjs",
     "e2e:export": "node e2e/admin-kitchen-export.cjs",
-    "e2e": "node e2e/pay-to-play.cjs && node e2e/staff-login.cjs && node e2e/staff-board.cjs && node e2e/order-to-course.cjs && node e2e/orders-queue.cjs && node e2e/membership-apply.cjs && node e2e/dues-payment.cjs && node e2e/admin-settings.cjs && node e2e/admin-menu.cjs && node e2e/admin-tiers-carts.cjs && node e2e/admin-kitchen-export.cjs"
+    "e2e:signs": "node e2e/qr-signs.cjs",
+    "e2e": "node e2e/pay-to-play.cjs && node e2e/staff-login.cjs && node e2e/staff-board.cjs && node e2e/order-to-course.cjs && node e2e/orders-queue.cjs && node e2e/membership-apply.cjs && node e2e/dues-payment.cjs && node e2e/admin-settings.cjs && node e2e/admin-menu.cjs && node e2e/admin-tiers-carts.cjs && node e2e/admin-kitchen-export.cjs && node e2e/qr-signs.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

@@ -10,6 +10,7 @@ const tabs = [
   { href: "/admin/tiers", label: "Membership types" },
   { href: "/admin/carts", label: "Carts" },
   { href: "/admin/export", label: "Export" },
+  { href: "/admin/signs", label: "QR signs" },
 ] as const;
 
 export function AdminNav() {

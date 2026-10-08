@@ -4,7 +4,7 @@ import type { Settings } from "@/content/settings";
 
 export function SiteFooter({ club }: { club: Settings["club"] }) {
   return (
-    <footer className="mt-auto border-t border-black/10 bg-stone-100">
+    <footer className="mt-auto border-t border-black/10 bg-stone-100 print:hidden">
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-2">
         <div>
           <p className="font-semibold">{club.name}</p>
