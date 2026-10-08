@@ -22,7 +22,7 @@ export default async function OpengraphImage() {
       }}
     >
       <div style={{ fontSize: 32, color: "#bbf7d0", letterSpacing: 2 }}>
-        {`${club.city.toUpperCase()}, ${club.state} · EST. ${course.established}`}
+        {`${club.city.toUpperCase()}, ${club.state} · SINCE ${course.built}`}
       </div>
       <div style={{ fontSize: 96, fontWeight: 700, marginTop: 12 }}>
         {club.name}

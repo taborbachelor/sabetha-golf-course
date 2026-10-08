@@ -26,3 +26,31 @@ export const duesFormSchema = z.object({
 });
 
 export type DuesForm = z.infer<typeof duesFormSchema>;
+
+/**
+ * Which season a dues payment covers. Dues statements go out at the end of
+ * January and are due March 1 / June 1, and the course winds down in the
+ * fall, so anything paid from October onward is treated as paying ahead for
+ * NEXT season; January to September pays the current year. `date` is read in
+ * the club's time zone so a payment late on September 30 isn't pushed forward.
+ */
+export function duesSeason(date: Date, timeZone: string): number {
+  const [year, month] = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+  })
+    .format(date)
+    .split("-")
+    .map(Number);
+  return month >= 10 ? year + 1 : year;
+}
+
+/**
+ * Short code to quote for a dues payment: the first 8 characters of its ID,
+ * upper-cased ("3F9A1C2B"). Derived, so nothing extra is stored; the full ID
+ * is still what opens the receipt.
+ */
+export function duesReceiptCode(id: string): string {
+  return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}

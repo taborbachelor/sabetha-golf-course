@@ -1,10 +1,15 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatPrice } from "@/content/menu";
 import { installmentLabels } from "@/content/memberships";
-import { SquareCard, type TokenizeFn } from "@/components/SquareCard";
+import { FieldError } from "@/components/FieldError";
+import {
+  SquareCard,
+  preloadSquare,
+  type TokenizeFn,
+} from "@/components/SquareCard";
+import { errorId, errorsByField, focusFirstInvalid } from "@/lib/forms";
 import {
   INSTALLMENTS,
   duesAmount,
@@ -12,6 +17,7 @@ import {
   type DuesForm as Fields,
   type Installment,
 } from "@/lib/memberships/dues";
+import { formatDollars } from "@/lib/money";
 import { payDues } from "./actions";
 
 export type DuesTier = {
@@ -22,6 +28,7 @@ export type DuesTier = {
 };
 
 type Errors = Partial<Record<keyof Fields, string>>;
+type TokenResult = Awaited<ReturnType<TokenizeFn>>;
 
 export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
   const [tierId, setTierId] = useState("");
@@ -29,15 +36,55 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState<Errors>({});
-  const [readyKey, setReadyKey] = useState<string | null>(null);
+  const [focusTick, setFocusTick] = useState(0);
+  // Once the card form is shown it stays mounted, so editing the name or
+  // tier afterwards never throws away a typed card. Pay re-checks the form.
+  const [cardShown, setCardShown] = useState(false);
 
   const tier = tiers.find((t) => t.id === tierId);
   const amount = tier ? duesAmount(tier.priceCents, installment) : null;
   const formValues = { tierId, installment, name, email };
   const formKey = JSON.stringify(formValues);
-  const ready = readyKey === formKey;
+
+  /** Every problem with the form at once (empty when it can be paid). */
+  function check(): Errors {
+    const parsed = duesFormSchema.safeParse(formValues);
+    const found: Errors = parsed.success
+      ? {}
+      : errorsByField<keyof Fields>(parsed.error.issues);
+    if (!found.tierId && tier && tier.priceCents <= 0) {
+      found.tierId =
+        "Dues for this membership type aren't set yet. Please contact the Club Secretary.";
+    }
+    return found;
+  }
+  const canPay = Object.keys(check()).length === 0;
+
+  /** Show the errors (or clear them); true when the form is good to pay. */
+  function validate(): boolean {
+    const found = check();
+    setErrors(found);
+    if (Object.keys(found).length === 0) return true;
+    setFocusTick((n) => n + 1);
+    return false;
+  }
+
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (focusTick) focusFirstInvalid(formRef.current);
+  }, [focusTick]);
+
+  function clearError(field: keyof Fields) {
+    if (!errors[field]) return;
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   const router = useRouter();
+  useEffect(() => preloadSquare(), []);
   const tokenize = useRef<TokenizeFn | null>(null);
   // Kept only when the card was charged but saving failed, so the retry
   // replays the same charge instead of making a new one.
@@ -52,20 +99,27 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
     setCardReady(!!fn);
   }, []);
 
-  async function onPay() {
-    if (!tokenize.current || paying) return;
+  const cardSection = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (cardShown) cardSection.current?.scrollIntoView({ block: "start" });
+  }, [cardShown]);
+
+  /** Charge a card or wallet token; shared by the Pay button and wallets. */
+  async function pay(getToken: () => Promise<TokenResult>) {
+    if (paying) return;
+    if (!validate()) return;
     setPaying(true);
     setPayError(null);
 
     let current = attempt.current?.key === formKey ? attempt.current : null;
     if (!current) {
-      const card = await tokenize.current();
-      if (!card.ok) {
-        setPayError(card.message);
+      const source = await getToken();
+      if (!source.ok) {
+        setPayError(source.message);
         setPaying(false);
         return;
       }
-      current = { id: crypto.randomUUID(), token: card.token, key: formKey };
+      current = { id: crypto.randomUUID(), token: source.token, key: formKey };
     }
 
     const result = await payDues(current.id, formValues, current.token);
@@ -76,34 +130,42 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
     attempt.current = result.retrySame ? current : null;
     if (result.field) {
       setErrors({ [result.field]: result.message });
-      setReadyKey(null);
+      setFocusTick((n) => n + 1);
     }
     setPayError(result.message);
     setPaying(false);
   }
 
+  function onPay() {
+    const fn = tokenize.current;
+    if (!fn) return;
+    void pay(fn);
+  }
+
+  async function onWalletToken(token: string) {
+    await pay(async () => ({ ok: true, token }));
+  }
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = duesFormSchema.safeParse(formValues);
-    if (!parsed.success) {
-      const next: Errors = {};
-      for (const issue of parsed.error.issues) {
-        next[issue.path[0] as keyof Fields] ??= issue.message;
-      }
-      setErrors(next);
-      setReadyKey(null);
-      return;
-    }
-    setErrors({});
+    if (!validate()) return;
     setPayError(null);
-    setReadyKey(formKey);
+    setCardShown(true);
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-7">
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-7">
       <fieldset>
-        <legend className="mb-2 font-medium">Membership type</legend>
-        <div className="grid gap-2">
+        <legend id="tier-legend" className="mb-2 font-medium">
+          Membership type
+        </legend>
+        <div
+          role="radiogroup"
+          aria-labelledby="tier-legend"
+          aria-invalid={!!errors.tierId}
+          aria-describedby={errorId("tierId")}
+          className="grid scroll-mt-24 gap-2"
+        >
           {tiers.map((t) => (
             <label
               key={t.id}
@@ -114,35 +176,44 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
                 name="tierId"
                 value={t.id}
                 checked={tierId === t.id}
-                onChange={() => setTierId(t.id)}
-                className="size-5 accent-green-800"
+                onChange={() => {
+                  setTierId(t.id);
+                  clearError("tierId");
+                }}
+                className="size-5 shrink-0 accent-green-800"
               />
-              <span className="flex flex-1 flex-wrap items-center gap-2 font-semibold">
-                {t.name}
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-semibold">{t.name}</span>
                 {t.isSample && (
-                  <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-normal text-stone-600">
+                  <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600">
                     Sample
                   </span>
                 )}
-              </span>
-              <span className="text-sm text-stone-700">
-                {t.priceCents > 0 ? `${formatPrice(t.priceCents)}/yr` : "Ask"}
+                <span className="ml-auto text-sm text-stone-700">
+                  {t.priceCents > 0
+                    ? `${formatDollars(t.priceCents)}/yr`
+                    : "Ask"}
+                </span>
               </span>
             </label>
           ))}
         </div>
-        <FieldError message={errors.tierId} />
+        <FieldError field="tierId" message={errors.tierId} />
       </fieldset>
 
       <fieldset>
         <legend className="mb-2 font-medium">Paying</legend>
-        <div className="grid grid-cols-3 gap-2">
+        {/* Three across when they fit; stacked on narrow screens or large text. */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
           {INSTALLMENTS.map((i) => (
             <button
               key={i}
               type="button"
               aria-pressed={installment === i}
-              onClick={() => setInstallment(i)}
+              onClick={() => {
+                setInstallment(i);
+                clearError("installment");
+              }}
               className={`chip flex-col justify-center py-2 text-center ${installment === i ? "chip-on" : ""}`}
             >
               <span>{installmentLabels[i].label}</span>
@@ -152,7 +223,7 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
             </button>
           ))}
         </div>
-        <FieldError message={errors.installment} />
+        <FieldError field="installment" message={errors.installment} />
       </fieldset>
 
       <fieldset className="space-y-4">
@@ -160,24 +231,36 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
         <label className="block">
           <span className="mb-1.5 block font-medium">Member name</span>
           <input
+            name="name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              clearError("name");
+            }}
             autoComplete="name"
+            aria-invalid={!!errors.name}
+            aria-describedby={errorId("name")}
             className="input"
           />
-          <FieldError message={errors.name} />
+          <FieldError field="name" message={errors.name} />
         </label>
         <label className="block">
           <span className="mb-1.5 block font-medium">Email</span>
           <input
+            name="email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearError("email");
+            }}
             autoComplete="email"
             inputMode="email"
+            aria-invalid={!!errors.email}
+            aria-describedby={errorId("email")}
             className="input"
           />
-          <FieldError message={errors.email} />
+          <FieldError field="email" message={errors.email} />
         </label>
         <p className="text-sm text-stone-600">
           Use the name and email the club has on file, so the Secretary can
@@ -188,16 +271,16 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
       {tier && amount !== null && amount > 0 && (
         <section
           aria-label="Total"
-          className="flex justify-between rounded-xl border border-stone-200 bg-white p-4 font-bold"
+          className="flex flex-wrap justify-between gap-x-4 rounded-xl border border-stone-200 bg-white p-4 font-bold"
         >
-          <span>
+          <span className="min-w-0">
             {tier.name}, {installmentLabels[installment].label.toLowerCase()}
           </span>
-          <span>{formatPrice(amount)}</span>
+          <span>{formatDollars(amount)}</span>
         </section>
       )}
 
-      {!ready && (
+      {!cardShown && (
         <button
           type="submit"
           className="w-full rounded-xl bg-green-800 px-5 py-4 text-lg font-bold text-white hover:bg-green-900"
@@ -205,12 +288,23 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
           Continue to payment
         </button>
       )}
-      {ready && amount !== null && (
-        <section aria-labelledby="card-heading" className="space-y-4">
+      {cardShown && (
+        <section
+          ref={cardSection}
+          aria-labelledby="card-heading"
+          className="scroll-mt-4 space-y-4 sm:scroll-mt-24"
+        >
           <h2 id="card-heading" className="text-lg font-bold">
-            Card
+            Payment
           </h2>
-          <SquareCard onReady={onCardReady} />
+          <SquareCard
+            onReady={onCardReady}
+            amountCents={amount ?? 0}
+            label="Membership dues"
+            // Wallet buttons only while the form is complete and payable.
+            onWalletToken={canPay ? onWalletToken : undefined}
+            disabled={paying}
+          />
           {payError && (
             <p
               role="alert"
@@ -225,7 +319,11 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
             disabled={!cardReady || paying}
             className="w-full rounded-xl bg-green-800 px-5 py-4 text-lg font-bold text-white hover:bg-green-900 disabled:bg-stone-400"
           >
-            {paying ? "Paying…" : `Pay ${formatPrice(amount)}`}
+            {paying
+              ? "Paying…"
+              : amount && amount > 0
+                ? `Pay ${formatDollars(amount)}`
+                : "Pay"}
           </button>
           <p className="text-center text-sm text-stone-500">
             Test mode: use card 4111 1111 1111 1111, any future date, CVV 111.
@@ -234,9 +332,4 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
       )}
     </form>
   );
-}
-
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return <span className="mt-1 block text-sm text-red-700">{message}</span>;
 }

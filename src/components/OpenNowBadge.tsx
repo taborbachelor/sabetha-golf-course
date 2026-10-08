@@ -2,37 +2,47 @@
 
 import { useEffect, useState } from "react";
 import type { Settings } from "@/content/settings";
-import { isOpenNow } from "@/lib/hours";
+import { clubhouseStatus, type ClubhouseStatus } from "@/lib/hours";
 
 type Props = Pick<Settings, "timeZone" | "clubhouseHours">;
 
 /**
- * Clubhouse open/closed badge. Computed in the browser so statically
- * prerendered pages never show a stale build-time answer.
+ * Clubhouse badge: "Open until 8pm", "Opens 4:30pm", "Opens Wed 4:30pm".
+ * Computed only in the browser (empty until then) so a prerendered page
+ * never shows a stale build-time answer; refreshed every minute and when
+ * the tab comes back into view.
  */
 export function OpenNowBadge({ timeZone, clubhouseHours }: Props) {
-  const [open, setOpen] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<ClubhouseStatus | null>(null);
 
   useEffect(() => {
     const update = () =>
-      setOpen(isOpenNow({ timeZone, clubhouseHours }, new Date()));
+      setStatus(clubhouseStatus({ timeZone, clubhouseHours }, new Date()));
     update();
     const id = setInterval(update, 60_000);
-    return () => clearInterval(id);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") update();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [timeZone, clubhouseHours]);
 
   return (
     <span
       aria-live="polite"
-      className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium"
+      className="inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium whitespace-nowrap"
     >
-      {open !== null && (
+      {status && (
         <>
           <span
             aria-hidden="true"
-            className={`size-2 rounded-full ${open ? "bg-green-300" : "bg-stone-400"}`}
+            className={`size-2 rounded-full ${status.open ? "bg-green-300" : "bg-stone-400"}`}
           />
-          {open ? "Clubhouse open" : "Clubhouse closed"}
+          <span className="sr-only">Clubhouse: </span>
+          {status.text}
         </>
       )}
     </span>

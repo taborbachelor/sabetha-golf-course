@@ -57,16 +57,17 @@ export default async function GolfPage() {
         </div>
         <div className="mt-4 rounded-lg border border-green-800/20 bg-green-50 p-4">
           <p className="font-medium">Where to pay</p>
-          <p className="mt-1">
-            Non-members pay at the clubhouse when it&apos;s open. When it&apos;s
-            closed, register and pay at the box at hole #1.
-          </p>
-          <p className="mt-2 text-sm">
-            Online pay-ahead is{" "}
-            <Link href="/pay" className="font-medium text-green-800 underline">
-              coming soon
+          <p className="mt-2">
+            <Link
+              href="/pay"
+              className="inline-block rounded-lg bg-green-800 px-5 py-3 font-semibold text-white hover:bg-green-900"
+            >
+              Pay to Play
             </Link>
-            .
+          </p>
+          <p className="mt-3">
+            Pay online before you go, or pay at the clubhouse when it&apos;s
+            open. When it&apos;s closed, register and pay at the box at hole #1.
           </p>
         </div>
       </section>

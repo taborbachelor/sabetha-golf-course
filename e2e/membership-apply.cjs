@@ -55,7 +55,7 @@ async function signIn(page, user, next) {
     // 1. Apply on a phone.
     const phone = await b.newPage({ viewport: { width: 390, height: 844 } });
     await phone.goto(`${base}/memberships`);
-    await phone.getByRole("link", { name: "Apply online" }).click();
+    await phone.getByRole("link", { name: "Apply online" }).first().click();
     await phone.waitForURL(/\/memberships\/apply$/);
     await phone.getByRole("radio", { name: /Single/ }).waitFor();
     await phone.getByLabel("Full name").fill(NAME);
@@ -65,10 +65,18 @@ async function signIn(page, user, next) {
     await phone.getByRole("button", { name: "Send application" }).click();
     await phone.getByText("Pick a membership type").first().waitFor();
     console.log(
-      "1 no type -> error, name kept:",
+      "1 no type + short phone -> both errors at once:",
+      await phone.getByText("Enter a 10-digit phone number").count(),
+      "| first invalid focused:",
+      await phone.evaluate(() => document.activeElement?.type),
+      "| name kept:",
       (await phone.getByLabel("Full name").inputValue()) === NAME,
     );
     await phone.getByRole("radio", { name: /Single/ }).check();
+    console.log(
+      "1b type error clears on change:",
+      (await phone.getByText("Pick a membership type").count()) === 0,
+    );
     await phone.getByRole("button", { name: "Send application" }).click();
     await phone.getByText("Enter a 10-digit phone number").first().waitFor();
     console.log(

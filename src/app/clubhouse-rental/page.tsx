@@ -36,7 +36,7 @@ export default async function ClubhouseRentalPage() {
           <dd>
             <a
               href={`mailto:${club.email}?subject=Clubhouse%20rental`}
-              className="font-medium text-green-800 underline"
+              className="font-medium break-all text-green-800 underline"
             >
               {club.email}
             </a>

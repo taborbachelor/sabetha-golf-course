@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
+import { Suspense } from "react";
+import { PublicOnly } from "@/components/PublicOnly";
 import { SiteFooter } from "@/components/SiteFooter";
-import { SiteHeader } from "@/components/SiteHeader";
+import { SiteHeader, SiteHeaderFallback } from "@/components/SiteHeader";
 import { getSettings } from "@/lib/settings";
 import { allowIndexing, siteUrl } from "@/lib/site";
 import { golfCourseJsonLd } from "@/lib/structuredData";
@@ -40,6 +42,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const settings = await getSettings();
   const { club, timeZone, clubhouseHours } = settings;
   const jsonLd = golfCourseJsonLd(settings, siteUrl());
+  const badge = (
+    <OpenNowBadge timeZone={timeZone} clubhouseHours={clubhouseHours} />
+  );
 
   return (
     <html
@@ -47,14 +52,20 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <SiteHeader
-          clubName={club.name}
-          badge={
-            <OpenNowBadge timeZone={timeZone} clubhouseHours={clubhouseHours} />
-          }
-        />
+        {/* The header and footer read the URL (hidden on the staff board);
+            pages with an unknown dynamic segment show the fallback while
+            prerendering. */}
+        <Suspense
+          fallback={<SiteHeaderFallback clubName={club.name} badge={badge} />}
+        >
+          <SiteHeader clubName={club.name} badge={badge} />
+        </Suspense>
         <main className="flex flex-1 flex-col">{children}</main>
-        <SiteFooter club={club} />
+        <Suspense fallback={<SiteFooter club={club} />}>
+          <PublicOnly>
+            <SiteFooter club={club} />
+          </PublicOnly>
+        </Suspense>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
