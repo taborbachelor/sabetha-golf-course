@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MenuRow } from "@/lib/orders/order";
-import { menuItemFromForm, parseDollars } from "./form";
+import { parseDollars } from "@/lib/money";
+import { menuItemFromForm } from "./form";
 import { groupMenu } from "./group";
 
 describe("parseDollars", () => {
