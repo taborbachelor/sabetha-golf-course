@@ -12,7 +12,8 @@ Next.js (App Router, TypeScript strict) + Tailwind, Supabase (Postgres, auth, Re
 
 ```
 src/app/              routes (App Router)
-src/lib/              shared code; lib/payments wraps the payment provider; lib/dates.ts
+src/lib/              shared code: payments/ (Square adapter), supabase/ (admin, server, browser clients),
+                      env.ts (validated env), pricing.ts (quoteRound), dates.ts, hours.ts
 src/content/          settings.ts: placeholder hours, rates, contact (replaced by DB later)
 supabase/migrations/  SQL migrations (review before applying)
 docs/                 ISSUES.md: Phase 1 task list
@@ -28,6 +29,7 @@ npm run typecheck    # tsc --noEmit
 npm test             # Vitest (single run)
 npm run build        # production build
 npm run format       # Prettier (format:check to verify)
+npm run check:square # one $1.00 Square SANDBOX payment to prove credentials work
 ```
 
 Lint, typecheck, test and build must all pass before opening a PR. CI runs the same four on every PR.
