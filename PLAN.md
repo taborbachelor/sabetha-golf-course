@@ -105,6 +105,7 @@ Edit prices, hours, menu items, number of carts, membership tiers, and kitchen-t
 - Load real prices, menu, membership tiers, and cart count.
 - Staff logins, 15-minute training, printed QR signs for hole #1, carts and tee boxes.
 - Point the domain at Vercel (they're on Wix today; transfer DNS or the domain).
+- Register that domain for Apple Pay with Square (see [DEMO.md, "Wallets"](./docs/DEMO.md#wallets-apple-pay-and-google-pay)).
 - Soft launch for a couple of weekends, then announce it via TextCaster, the newsletter and Facebook.
 
 ## 6. Data model (starting point)

@@ -96,6 +96,14 @@ From `npm run e2e:demo -- https://sabetha-golf-course.vercel.app` (three clean r
 
 The script deletes its test round, order and login afterwards and puts the demo switch and kitchen status back.
 
+## Wallets (Apple Pay and Google Pay)
+
+The checkout card form (`src/components/SquareCard.tsx`) shows Apple Pay / Google Pay buttons above the card when the browser supports them, and hides them quietly otherwise. A wallet payment gives the same one-time Square token as a card, and the server still re-prices and charges its own amount.
+
+- **Google Pay** works in the sandbox today in Chrome and Edge (Google's test sheet; no real card is charged).
+- **Apple Pay** only appears in Safari, and only on a domain registered with Square. Nothing is registered for the demo, so it won't show yet. At go-live (PLAN.md Phase 4), once the club's domain points here: in the club's Square Developer dashboard open the production application, go to **Apple Pay**, add the domain, download the verification file and serve it at `https://<domain>/.well-known/apple-developer-merchantid-domain-association` (e.g. put it in `public/.well-known/`), then press **Verify**. (Square's API can do the same: `POST /v2/apple-pay/domains`.) To try Apple Pay in the sandbox first, register the Vercel domain the same way under the sandbox application.
+- The forms opt in by passing `amountCents`, `label` and `onWalletToken` to `SquareCard`.
+
 ## Things to say plainly
 
 - **Demo, not live**: sandbox payments, sample prices and drinks, 8 sample carts. Going live (PLAN.md Phase 4) needs the club's own Square account, real prices, menu, membership tiers and cart count, staff logins, and the domain pointed here.
