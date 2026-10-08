@@ -68,13 +68,19 @@ export function resolveArrival(
     if (form.playDate !== today) {
       return { ok: false, field: "arrival", message: "Pick an arrival time" };
     }
-    return {
-      ok: true,
-      arriveAt: new Date(
-        now.getTime() +
-          Number(form.arrival === "now" ? 0 : form.arrival) * 60_000,
-      ),
-    };
+    const arriveAt = new Date(
+      now.getTime() +
+        Number(form.arrival === "now" ? 0 : form.arrival) * 60_000,
+    );
+    // "~30 min" at 11:45pm would be tomorrow; the round is for today.
+    if (todayIn(opts.timeZone, arriveAt) !== form.playDate) {
+      return {
+        ok: false,
+        field: "arrival",
+        message: "That's after midnight. Pick tomorrow's date instead.",
+      };
+    }
+    return { ok: true, arriveAt };
   }
 
   const arriveAt = zonedTimeToUtc(

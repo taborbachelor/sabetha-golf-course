@@ -12,7 +12,15 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:square": "node --no-warnings scripts/square-sandbox-check.mts",
-    "staff:role": "node --no-warnings scripts/set-staff-role.mts"
+    "staff:role": "node --no-warnings scripts/set-staff-role.mts",
+    "db:query": "node scripts/db-query.cjs",
+    "db": "node scripts/supabase-db.cjs",
+    "e2e:pay": "node e2e/pay-to-play.cjs",
+    "e2e:login": "node e2e/staff-login.cjs",
+    "e2e:board": "node e2e/staff-board.cjs",
+    "e2e:order": "node e2e/order-to-course.cjs",
+    "e2e:queue": "node e2e/orders-queue.cjs",
+    "e2e": "node e2e/pay-to-play.cjs && node e2e/staff-login.cjs && node e2e/staff-board.cjs && node e2e/order-to-course.cjs && node e2e/orders-queue.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -31,6 +39,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "pg": "8.23.0",
+    "playwright-core": "1.63.0",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
