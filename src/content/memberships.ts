@@ -39,5 +39,4 @@ export const memberPerks = [
   "Members are encouraged to help care for the grounds; volunteers are always welcome.",
 ];
 
-export const bylawsUrl =
-  "https://www.sabethagolfclub.com/_files/ugd/3dcebe_17cff9ab16044d3fb42a4b3660961143.pdf";
+export const bylawsUrl = "/files/sabetha-golf-club-bylaws.pdf";

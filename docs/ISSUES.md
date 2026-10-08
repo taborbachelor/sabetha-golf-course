@@ -25,7 +25,7 @@ Each item is one small PR. Order matters where noted. All values come from `getS
 11. **Gift Cards**: page linking to the existing Square gift card page.
     - Status: ✅ #16
 12. **Photos**: add images to `public/images`, use `next/image` with alt text and sizes. _Done when:_ no layout shift and images are optimized.
-    - Status: ⏳ Blocked: waiting on photos from Tabor
+    - Status: ✅ Photos from Tabor: home hero, Golf gallery, Pool, Clubhouse Rental; logo in header and as site icon; By-Laws PDF hosted locally
 13. **SEO**: per-page titles and descriptions, Open Graph, `GolfCourse`/`LocalBusiness` JSON-LD, `sitemap.ts`, `robots.ts`.
     - Status: ✅ #17 (indexing off until go-live via ALLOW_INDEXING)
 14. **Vercel preview**: connect the repo, set env vars, confirm the preview deploys from PRs. _Done when:_ a preview URL is shared with Tabor.
