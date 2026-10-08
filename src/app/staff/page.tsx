@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { getSettings } from "@/content/settings";
 import { requireStaff } from "@/lib/auth";
@@ -35,6 +36,11 @@ async function StaffHome() {
           <span className="text-stone-600">
             {user.email} · {user.role}
           </span>
+          {user.role === "admin" && (
+            <Link href="/admin" className="chip min-h-10">
+              Admin
+            </Link>
+          )}
           <button type="submit" className="chip min-h-10">
             Sign out
           </button>
