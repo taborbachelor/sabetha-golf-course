@@ -1,6 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { publicEnv } from "@/lib/env";
 
 /**
@@ -8,6 +9,10 @@ import { publicEnv } from "@/lib/env";
  * cookies), so RLS applies. Use in Server Components, actions and routes.
  */
 export async function createServerSupabase() {
+  // Staff data is always per request. Without this, Partial Prefetching
+  // treats cookies as part of the prerendered shell and Supabase's session
+  // check (Date.now) breaks the prerender.
+  await connection();
   const cookieStore = await cookies();
   const env = publicEnv();
 

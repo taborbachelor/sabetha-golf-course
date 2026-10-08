@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { getSettings } from "@/content/settings";
 import { requireStaff } from "@/lib/auth";
+import { fetchBoard } from "@/lib/staff/queries";
+import { createServerSupabase } from "@/lib/supabase/server";
 import { signOut } from "./actions";
+import { StaffBoard } from "./StaffBoard";
 
 export const metadata: Metadata = {
   title: "Staff",
@@ -10,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function StaffPage() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8">
+    <div className="mx-auto w-full max-w-7xl px-4 py-6">
       <Suspense fallback={<p className="text-stone-600">Loading…</p>}>
         <StaffHome />
       </Suspense>
@@ -20,10 +24,12 @@ export default function StaffPage() {
 
 async function StaffHome() {
   const user = await requireStaff("/staff");
+  const { timeZone } = getSettings();
+  const initial = await fetchBoard(await createServerSupabase(), timeZone);
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Clubhouse</h1>
         <form action={signOut} className="flex items-center gap-3 text-sm">
           <span className="text-stone-600">
@@ -34,9 +40,7 @@ async function StaffHome() {
           </button>
         </form>
       </div>
-      <p className="mt-6 rounded-lg bg-stone-100 px-4 py-3 text-stone-700">
-        Paid today, the carts board and the orders queue arrive here next.
-      </p>
+      <StaffBoard initial={initial} timeZone={timeZone} />
     </div>
   );
 }
