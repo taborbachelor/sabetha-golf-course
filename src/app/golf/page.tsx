@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RatesTable } from "@/components/RatesTable";
-import { courseDescription, golfRules } from "@/content/golf";
+import { clubHistory, courseDescription, golfRules } from "@/content/golf";
 import { getSettings } from "@/content/settings";
 
 export const metadata: Metadata = {
@@ -78,6 +78,17 @@ export default function GolfPage() {
             <li key={rule}>{rule}</li>
           ))}
         </ul>
+      </section>
+
+      <section aria-labelledby="history-heading" className="mt-10">
+        <h2 id="history-heading" className="text-xl font-bold">
+          History
+        </h2>
+        {clubHistory.map((p) => (
+          <p key={p} className="mt-3">
+            {p}
+          </p>
+        ))}
       </section>
     </div>
   );
