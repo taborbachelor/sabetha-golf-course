@@ -154,3 +154,60 @@ export async function rentWalkIn(input: {
     ? { ok: false, message: "Couldn't save the rental. Try again." }
     : { ok: true };
 }
+
+const ORDER_FROM = {
+  preparing: "new",
+  out_for_delivery: "preparing",
+  delivered: "out_for_delivery",
+} as const;
+
+/**
+ * Move an order one step: New -> Preparing -> On the way -> Delivered.
+ * Only succeeds from the expected previous status.
+ */
+export async function advanceOrder(
+  orderId: string,
+  to: keyof typeof ORDER_FROM,
+): Promise<BoardResult> {
+  if (!isUuid(orderId) || !(to in ORDER_FROM)) {
+    return { ok: false, message: STALE };
+  }
+  const db = await staffDb();
+  const { data } = await db
+    .from("orders")
+    .update({ status: to, updated_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("status", ORDER_FROM[to])
+    .select("id");
+  return done(data, STALE);
+}
+
+const KITCHEN = z.enum(["open", "drinks_only", "closed"]);
+
+/** Kitchen open / Drinks only / Ordering closed. Any staff member. */
+export async function setKitchenStatus(status: string): Promise<BoardResult> {
+  const parsed = KITCHEN.safeParse(status);
+  if (!parsed.success) return { ok: false, message: STALE };
+  const db = await staffDb();
+  const { data } = await db
+    .from("settings")
+    .update({ value: parsed.data, updated_at: new Date().toISOString() })
+    .eq("key", "kitchen_status")
+    .select("key");
+  return done(data, "Couldn't change the kitchen status. Try again.");
+}
+
+/** Demo switch: take orders outside clubhouse hours. Admins only. */
+export async function setIgnoreHoursForDemo(on: boolean): Promise<BoardResult> {
+  const user = await requireStaff();
+  if (user.role !== "admin") {
+    return { ok: false, message: "Only an admin can change this." };
+  }
+  const db = await createServerSupabase();
+  const { data } = await db
+    .from("settings")
+    .update({ value: on === true, updated_at: new Date().toISOString() })
+    .eq("key", "ignore_hours_for_demo")
+    .select("key");
+  return done(data, "Couldn't change the demo setting. Try again.");
+}

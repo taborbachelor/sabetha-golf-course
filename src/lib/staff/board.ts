@@ -79,7 +79,57 @@ export function availableCarts(board: CartTile[]): CartRow[] {
   return board.filter((t) => t.state.kind === "available").map((t) => t.cart);
 }
 
-/** IDs of rounds that arrived since `seen`, for the chime. */
-export function newRoundIds(rounds: RoundRow[], seen: Set<string>): string[] {
-  return rounds.filter((r) => !seen.has(r.id)).map((r) => r.id);
+/** IDs of rounds or orders that arrived since `seen`, for the chime. */
+export function newRoundIds(
+  rows: { id: string }[],
+  seen: Set<string>,
+): string[] {
+  return rows.filter((r) => !seen.has(r.id)).map((r) => r.id);
+}
+
+export type OrderQueueStatus = "new" | "preparing" | "out_for_delivery";
+
+export type OrderRow = {
+  id: string;
+  code: string;
+  hole: number;
+  name: string;
+  phone: string;
+  items: { id: string; name: string; qty: number; is_alcohol: boolean }[];
+  total_cents: number;
+  has_alcohol: boolean;
+  status: OrderQueueStatus;
+  created_at: string;
+};
+
+/** The one button each order shows, moving it to the next status. */
+export const NEXT_ORDER_STEP: Record<
+  OrderQueueStatus,
+  { to: "preparing" | "out_for_delivery" | "delivered"; label: string }
+> = {
+  new: { to: "preparing", label: "Start" },
+  preparing: { to: "out_for_delivery", label: "Send out" },
+  out_for_delivery: { to: "delivered", label: "Delivered" },
+};
+
+export const ORDER_STATUS_LABEL: Record<OrderQueueStatus, string> = {
+  new: "New",
+  preparing: "Preparing",
+  out_for_delivery: "On the way",
+};
+
+/** Open orders, oldest first: whoever has waited longest is at the top. */
+export function orderQueue(orders: OrderRow[]): OrderRow[] {
+  return [...orders].sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+/** "just now", "4 min", "1 hr 5 min" since `iso`. */
+export function waitingFor(iso: string, now: Date = new Date()): string {
+  const minutes = Math.max(
+    0,
+    Math.floor((now.getTime() - new Date(iso).getTime()) / 60_000),
+  );
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
 }

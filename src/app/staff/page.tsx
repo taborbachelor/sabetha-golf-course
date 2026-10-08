@@ -40,7 +40,11 @@ async function StaffHome() {
           </button>
         </form>
       </div>
-      <StaffBoard initial={initial} timeZone={timeZone} />
+      <StaffBoard
+        initial={initial}
+        timeZone={timeZone}
+        isAdmin={user.role === "admin"}
+      />
     </div>
   );
 }

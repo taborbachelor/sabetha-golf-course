@@ -4,6 +4,9 @@ import {
   buildCartBoard,
   needsCart,
   newRoundIds,
+  NEXT_ORDER_STEP,
+  orderQueue,
+  waitingFor,
   type CartRow,
   type SessionRow,
 } from "./board";
@@ -80,5 +83,31 @@ describe("newRoundIds", () => {
   it("returns rounds not seen before", () => {
     const rounds = [{ id: "1" }, { id: "2" }] as never[];
     expect(newRoundIds(rounds, new Set(["1"]))).toEqual(["2"]);
+  });
+});
+
+describe("orders", () => {
+  const order = (id: string, created_at: string) =>
+    ({ id, created_at, status: "new" }) as never;
+
+  it("queues oldest first", () => {
+    const q = orderQueue([
+      order("b", "2026-10-10T15:05:00Z"),
+      order("a", "2026-10-10T15:00:00Z"),
+    ]);
+    expect(q.map((o: { id: string }) => o.id)).toEqual(["a", "b"]);
+  });
+
+  it("steps New -> Preparing -> On the way -> Delivered", () => {
+    expect(NEXT_ORDER_STEP.new.to).toBe("preparing");
+    expect(NEXT_ORDER_STEP.preparing.to).toBe("out_for_delivery");
+    expect(NEXT_ORDER_STEP.out_for_delivery.to).toBe("delivered");
+  });
+
+  it("says how long an order has waited", () => {
+    const now = new Date("2026-10-10T16:10:30Z");
+    expect(waitingFor("2026-10-10T16:10:10Z", now)).toBe("just now");
+    expect(waitingFor("2026-10-10T16:06:00Z", now)).toBe("4 min");
+    expect(waitingFor("2026-10-10T15:05:00Z", now)).toBe("1 hr 5 min");
   });
 });
