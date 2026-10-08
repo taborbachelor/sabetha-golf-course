@@ -29,3 +29,27 @@ body {
     @apply border-green-800 bg-green-800 text-white hover:border-green-800;
   }
 }
+
+/* Printable QR signs (/admin/signs): one sign per letter page, no site chrome. */
+@page {
+  size: letter portrait;
+  margin: 0.4in;
+}
+@media print {
+  body {
+    background: white;
+  }
+  .sign-page {
+    width: 7.7in;
+    max-width: none;
+    height: 10.1in;
+    aspect-ratio: auto;
+    border: 0;
+    box-shadow: none;
+    break-after: page;
+    print-color-adjust: exact;
+  }
+  .sign-page:last-child {
+    break-after: auto;
+  }
+}
