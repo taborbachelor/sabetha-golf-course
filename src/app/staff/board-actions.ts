@@ -11,7 +11,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
  * stale screen or a double tap can't put a cart in a nonsense state.
  */
 
-export type BoardResult = { ok: true } | { ok: false; message: string };
+/**
+ * `at` is the timestamp an undoable step wrote (returned_at / updated_at).
+ * Undo only reverses the row if it still carries exactly that stamp.
+ */
+export type BoardResult =
+  { ok: true; at?: string } | { ok: false; message: string };
 
 const ACTIVE = ["reserved", "ready", "out"];
 
@@ -95,11 +100,54 @@ export async function markOut(sessionId: string): Promise<BoardResult> {
 export async function markReturned(sessionId: string): Promise<BoardResult> {
   if (!isUuid(sessionId)) return { ok: false, message: STALE };
   const db = await staffDb();
+  const at = new Date().toISOString();
   const { data } = await db
     .from("cart_sessions")
-    .update({ status: "returned", returned_at: new Date().toISOString() })
+    .update({ status: "returned", returned_at: at })
     .eq("id", sessionId)
     .eq("status", "out")
+    .select("id");
+  const result = done(data, STALE);
+  return result.ok ? { ok: true, at } : result;
+}
+
+/** The tablet offers Undo for ~10 s; allow some slack for a slow network. */
+const UNDO_WINDOW_MS = 60_000;
+const TOO_LATE = "Too late to undo. Fix it on the board.";
+
+function undoable(at: string): boolean {
+  const t = Date.parse(at);
+  return Number.isFinite(t) && Math.abs(Date.now() - t) <= UNDO_WINDOW_MS;
+}
+
+/**
+ * Undo a Returned tap: the cart goes back to Out (same out_at). Only if the
+ * session is still the one returned at `at`, and the cart hasn't been
+ * rented again since.
+ */
+export async function undoReturned(
+  sessionId: string,
+  at: string,
+): Promise<BoardResult> {
+  if (!isUuid(sessionId) || !undoable(at)) {
+    return { ok: false, message: TOO_LATE };
+  }
+  const db = await staffDb();
+  const { data: session } = await db
+    .from("cart_sessions")
+    .select("cart_id")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (session?.cart_id) {
+    const busy = await cartIsFree(db, session.cart_id);
+    if (busy) return { ok: false, message: busy };
+  }
+  const { data } = await db
+    .from("cart_sessions")
+    .update({ status: "out", returned_at: null })
+    .eq("id", sessionId)
+    .eq("status", "returned")
+    .eq("returned_at", at)
     .select("id");
   return done(data, STALE);
 }
@@ -173,11 +221,38 @@ export async function advanceOrder(
     return { ok: false, message: STALE };
   }
   const db = await staffDb();
+  const at = new Date().toISOString();
   const { data } = await db
     .from("orders")
-    .update({ status: to, updated_at: new Date().toISOString() })
+    .update({ status: to, updated_at: at })
     .eq("id", orderId)
     .eq("status", ORDER_FROM[to])
+    .select("id");
+  const result = done(data, STALE);
+  return result.ok ? { ok: true, at } : result;
+}
+
+/**
+ * Undo a Delivered tap: back to On the way. Only if the order is still the
+ * one marked delivered at `at`.
+ */
+export async function undoDelivered(
+  orderId: string,
+  at: string,
+): Promise<BoardResult> {
+  if (!isUuid(orderId) || !undoable(at)) {
+    return { ok: false, message: TOO_LATE };
+  }
+  const db = await staffDb();
+  const { data } = await db
+    .from("orders")
+    .update({
+      status: "out_for_delivery",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId)
+    .eq("status", "delivered")
+    .eq("updated_at", at)
     .select("id");
   return done(data, STALE);
 }
