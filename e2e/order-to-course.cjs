@@ -25,8 +25,12 @@ const db = createClient(
   env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } },
 );
+// updated_at matters: a kitchen status set on an earlier day is ignored.
 const setting = (key, value) =>
-  db.from("settings").update({ value }).eq("key", key);
+  db
+    .from("settings")
+    .update({ value, updated_at: new Date().toISOString() })
+    .eq("key", key);
 const NAME = "Order Tester";
 
 async function pay(p, card) {

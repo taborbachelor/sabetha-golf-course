@@ -9,6 +9,7 @@ import {
   useTransition,
 } from "react";
 import { formatPrice } from "@/content/menu";
+import { kitchenLabels } from "@/lib/orders/kitchen";
 import { formatTime } from "@/lib/hours";
 import {
   availableCarts,
@@ -196,6 +197,11 @@ export function StaffBoard({ initial, timeZone, isAdmin }: Props) {
             void run("kitchen", () => setKitchenStatus(status));
           }}
         />
+        {data.kitchen !== data.kitchenDefault && (
+          <span className="text-sm text-stone-600">
+            Back to {kitchenLabels[data.kitchenDefault]} tomorrow
+          </span>
+        )}
         {isAdmin && (
           <label className="flex items-center gap-2 text-sm">
             <input

@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
+import { asKitchenStatus } from "@/lib/orders/kitchen";
 import { getSettings } from "@/lib/settings";
 import { editableFrom } from "@/lib/settings/editable";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { KitchenDefaultForm } from "./KitchenDefaultForm";
 import { SettingsForm } from "./SettingsForm";
 
 export const metadata: Metadata = {
@@ -22,6 +25,13 @@ async function SettingsLoader() {
   await requireAdmin("/admin/settings");
   const settings = await getSettings();
   const values = editableFrom(settings);
+  const { data: kitchenRow } = await (
+    await createServerSupabase()
+  )
+    .from("settings")
+    .select("value")
+    .eq("key", "kitchen_default")
+    .maybeSingle();
 
   return (
     <div>
@@ -30,6 +40,11 @@ async function SettingsLoader() {
         Play, the rates on every page and the clubhouse hours right away.
       </p>
       <SettingsForm values={values} />
+      <div className="mt-10 border-t border-stone-200 pt-8">
+        <KitchenDefaultForm
+          value={asKitchenStatus(kitchenRow?.value, "open")}
+        />
+      </div>
     </div>
   );
 }

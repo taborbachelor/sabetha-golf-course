@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { todayIn } from "@/lib/dates";
+import { asKitchenStatus, effectiveKitchen } from "@/lib/orders/kitchen";
 import type { KitchenStatus } from "@/lib/orders/order";
 import { addDays, zonedTimeToUtc } from "@/lib/time";
 import type { CartRow, OrderRow, RoundRow, SessionRow } from "./board";
@@ -10,7 +11,10 @@ export type BoardData = {
   carts: CartRow[];
   sessions: SessionRow[];
   orders: OrderRow[];
+  /** In effect right now: what staff set today, else the admin default. */
   kitchen: KitchenStatus;
+  /** What the kitchen goes back to each morning (set in admin). */
+  kitchenDefault: KitchenStatus;
   ignoreHoursForDemo: boolean;
 };
 
@@ -59,17 +63,21 @@ export async function fetchBoard(
       .order("created_at", { ascending: true }),
     db
       .from("settings")
-      .select("key, value")
-      .in("key", ["kitchen_status", "ignore_hours_for_demo"]),
+      .select("key, value, updated_at")
+      .in("key", [
+        "kitchen_status",
+        "kitchen_default",
+        "ignore_hours_for_demo",
+      ]),
   ]);
 
   for (const r of [rounds, carts, sessions, orders, settings]) {
     if (r.error) throw r.error;
   }
 
-  const value = (key: string) =>
-    settings.data!.find((s) => s.key === key)?.value as unknown;
-  const kitchen = value("kitchen_status");
+  const row = (key: string) => settings.data!.find((s) => s.key === key);
+  const value = (key: string) => row(key)?.value as unknown;
+  const kitchenDefault = asKitchenStatus(value("kitchen_default"), "open");
 
   return {
     today,
@@ -77,8 +85,13 @@ export async function fetchBoard(
     carts: carts.data as CartRow[],
     sessions: sessions.data as SessionRow[],
     orders: orders.data as OrderRow[],
-    kitchen:
-      kitchen === "open" || kitchen === "drinks_only" ? kitchen : "closed",
+    kitchen: effectiveKitchen({
+      status: value("kitchen_status"),
+      setAt: row("kitchen_status")?.updated_at,
+      defaultStatus: kitchenDefault,
+      timeZone,
+    }),
+    kitchenDefault,
     ignoreHoursForDemo: value("ignore_hours_for_demo") === true,
   };
 }
