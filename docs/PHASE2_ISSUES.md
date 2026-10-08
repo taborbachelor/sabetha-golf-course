@@ -31,9 +31,9 @@ Each item is one small PR, merged when CI and the Vercel preview pass. Square st
 8. **Staff orders queue and kitchen toggle**: New → Preparing → Out for delivery → Delivered, 21+ badge, chime; Kitchen open / Drinks only / Ordering closed. _Done when:_ the order from task 7 walks through to Delivered and the toggle changes what `/order` offers.
    - Status: ✅ #28
 9. **Membership application**: online form saved to the database; listed in admin for the Club Secretary. _Done when:_ an application appears in admin.
-   - Status: ⏭️ Next
+   - Status: ✅ `/memberships/apply` → on-screen confirmation; `/admin` lists applications with Approve / Decline (admin role only). `npm run e2e:apply`.
 10. **Dues payment**: pay in full or first/second half against a tier, referenced by name/email. _Done when:_ a sandbox dues payment is recorded.
-    - Status: ⏳
+    - Status: ⏭️ Next
 11. **Admin**: edit prices, hours, menu items, cart count, membership tiers and kitchen default; settings move from `src/content/settings.ts` to the database (cached, refreshed on save); CSV export of rounds and orders. _Done when:_ changing a price in admin changes it on the public site.
     - Status: ⏳
 12. **Honor-box QR signs**: printable QR sheets for hole #1 (Pay to Play), carts and tee boxes (Order to the Course, with hole number). _Done when:_ the sheets print cleanly and the codes open the right pages.
@@ -43,4 +43,4 @@ Each item is one small PR, merged when CI and the Vercel preview pass. Square st
 
 ## Progress (2026-10-08)
 
-Tasks 1–8 are merged and verified on the deployed site with `npm run e2e` (sandbox payments, temporary users, cleanup afterwards). Paying for a round with a cart and ordering a drink to a hole both work end to end. Next: task 9 (membership application).
+Tasks 1–9 are merged and verified on the deployed site with `npm run e2e` (sandbox payments, temporary users, cleanup afterwards). Paying for a round with a cart and ordering a drink to a hole both work end to end. Next: task 10 (dues payment).

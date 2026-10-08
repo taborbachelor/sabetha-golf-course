@@ -89,7 +89,7 @@ export default function MembershipsPage() {
             href="/memberships/apply"
             className="inline-block rounded-lg bg-green-800 px-5 py-3 font-semibold text-white hover:bg-green-900"
           >
-            Apply online (coming soon)
+            Apply online
           </Link>
         </p>
       </section>

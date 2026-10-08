@@ -20,9 +20,9 @@ export const cartShed =
   "Members can rent a Cart Shed to store their own cart at the course.";
 
 export const howToJoin = [
-  "Send an inquiry to the Club Secretary by email or mail.",
+  "Apply online, or send an inquiry to the Club Secretary by email or mail.",
   "Include your full name, address, phone, email, the membership type you want, and whether you'd like to rent a Cart Shed.",
-  "The Secretary will reply with current rates.",
+  "The Secretary will review it and reply with current rates.",
 ];
 
 export const duesSchedule = [
