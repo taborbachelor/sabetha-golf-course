@@ -1,8 +1,18 @@
 import {
-  EDITABLE_KEYS,
+  PRICES_HOURS_KEYS,
+  describeProblem,
   editableSchemas,
   type EditableSettings,
+  type SettingsProblem,
 } from "./editable";
+
+type PricesHoursKey = (typeof PRICES_HOURS_KEYS)[number];
+export type PricesHours = Pick<EditableSettings, PricesHoursKey>;
+
+const numberFrom = (formData: FormData) => (name: string) => {
+  const raw = String(formData.get(name) ?? "").trim();
+  return raw === "" ? NaN : Number(raw);
+};
 
 /**
  * Reads the /admin/settings form. Inputs are named by path, e.g.
@@ -11,19 +21,14 @@ import {
  */
 export function settingsFromForm(
   formData: FormData,
-):
-  | { ok: true; values: EditableSettings }
-  | { ok: false; key: string; message: string } {
-  const num = (name: string) => {
-    const raw = String(formData.get(name) ?? "").trim();
-    return raw === "" ? NaN : Number(raw);
-  };
+): { ok: true; values: PricesHours } | ({ ok: false } & SettingsProblem) {
+  const num = numberFrom(formData);
   const byHoles = (prefix: string) => ({
     9: num(`${prefix}.9`),
     18: num(`${prefix}.18`),
   });
 
-  const raw: Record<string, unknown> = {
+  const raw: Record<PricesHoursKey, unknown> = {
     green_fees: {
       weekday: byHoles("green_fees.weekday"),
       weekend: byHoles("green_fees.weekend"),
@@ -48,12 +53,30 @@ export function settingsFromForm(
   };
 
   const values: Record<string, unknown> = {};
-  for (const key of EDITABLE_KEYS) {
+  for (const key of PRICES_HOURS_KEYS) {
     const parsed = editableSchemas[key].safeParse(raw[key]);
-    if (!parsed.success) {
-      return { ok: false, key, message: parsed.error.issues[0].message };
-    }
+    if (!parsed.success)
+      return { ok: false, ...describeProblem(key, parsed.error) };
     values[key] = parsed.data;
   }
-  return { ok: true, values: values as EditableSettings };
+  return { ok: true, values: values as PricesHours };
+}
+
+/**
+ * Reads the typical delivery time from the Order to the Course form:
+ * inputs "delivery_minutes.min" and "delivery_minutes.max".
+ */
+export function deliveryFromForm(
+  formData: FormData,
+):
+  | { ok: true; value: EditableSettings["delivery_minutes"] }
+  | ({ ok: false } & SettingsProblem) {
+  const num = numberFrom(formData);
+  const parsed = editableSchemas.delivery_minutes.safeParse({
+    min: num("delivery_minutes.min"),
+    max: num("delivery_minutes.max"),
+  });
+  return parsed.success
+    ? { ok: true, value: parsed.data }
+    : { ok: false, ...describeProblem("delivery_minutes", parsed.error) };
 }

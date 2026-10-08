@@ -37,7 +37,8 @@ async function TiersAdmin() {
         Shown on the Memberships page and offered on the application and dues
         forms. Yearly dues set what members pay online (in full, or half by
         March 1 and half by June 1). Set dues to $0 to take a type off online
-        payment.
+        payment. The small grey number is each type&apos;s order: lower numbers
+        show first.
       </p>
 
       <details className="rounded-lg border border-green-800 bg-white p-4">
@@ -60,10 +61,18 @@ async function TiersAdmin() {
                     Sample
                   </span>
                 )}
-                <span className="ml-auto tabular-nums">
-                  {tier.price_cents > 0
-                    ? `${formatPrice(tier.price_cents)}/yr`
-                    : "No online dues"}
+                <span className="ml-auto flex items-baseline gap-3">
+                  <span
+                    className="text-xs text-stone-400 tabular-nums"
+                    title="Order"
+                  >
+                    #{tier.sort_order}
+                  </span>
+                  <span className="tabular-nums">
+                    {tier.price_cents > 0
+                      ? `${formatPrice(tier.price_cents)}/yr`
+                      : "No online dues"}
+                  </span>
                 </span>
               </summary>
               <div className="mt-4">

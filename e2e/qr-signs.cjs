@@ -97,6 +97,16 @@ const pdfPages = (buf) =>
           matches++;
         targets.add(c.url);
       }
+      const signText = await ap.locator(".sign-page").allInnerTexts();
+      const lines = {
+        "while open": signText.filter((t) =>
+          t.includes("Available while the clubhouse is open"),
+        ).length,
+        "no signal": signText.filter((t) =>
+          t.includes("No signal? Use the box as before."),
+        ).length,
+      };
+      console.log(`2 ${sheet} sign lines:`, JSON.stringify(lines));
       await ap.emulateMedia({ media: "print" });
       const pdf = await ap.pdf({
         format: "Letter",

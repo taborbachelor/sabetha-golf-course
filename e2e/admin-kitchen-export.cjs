@@ -59,8 +59,18 @@ async function signIn(page, user, next) {
   const { data: saved } = await db
     .from("settings")
     .select("key, value, updated_at")
-    .in("key", ["kitchen_status", "kitchen_default", "ignore_hours_for_demo"]);
-  const ids = { round: randomUUID(), order: randomUUID(), dues: randomUUID() };
+    .in("key", [
+      "kitchen_status",
+      "kitchen_default",
+      "ignore_hours_for_demo",
+      "delivery_minutes",
+    ]);
+  const ids = {
+    round: randomUUID(),
+    refunded: randomUUID(),
+    order: randomUUID(),
+    dues: randomUUID(),
+  };
   const b = await chromium.launch({ channel: "msedge", headless: true });
   try {
     // 1. Kitchen default.
@@ -69,16 +79,41 @@ async function signIn(page, user, next) {
     const ap = await b.newPage({ viewport: { width: 1024, height: 900 } });
     await signIn(ap, admin, "/admin/settings");
     await ap.waitForURL(/\/admin\/settings$/, { timeout: 90000 });
-    const kitchenForm = ap.locator("form", {
-      has: ap.getByRole("group", { name: "Order to the Course" }),
+    const kitchenForm = ap.getByRole("form", { name: "Order to the Course" });
+    const saveOrdering = kitchenForm.getByRole("button", {
+      name: "Save ordering default",
     });
     await kitchenForm.getByLabel("Drinks only").check();
-    await kitchenForm
-      .getByRole("button", { name: "Save", exact: true })
-      .click();
+    // A backwards delivery time is explained and its box focused.
+    await kitchenForm.getByLabel("Shortest delivery time").fill("25");
+    await kitchenForm.getByLabel("Longest delivery time").fill("15");
+    await saveOrdering.click();
+    console.log(
+      "1 bad delivery time:",
+      await kitchenForm.getByRole("alert").innerText({ timeout: 30000 }),
+      "| focused:",
+      await ap.evaluate(() => document.activeElement?.getAttribute("name")),
+    );
+    // Save the defaults (10-20), so the cached settings match once the row
+    // is removed again in cleanup.
+    await kitchenForm.getByLabel("Shortest delivery time").fill("10");
+    await kitchenForm.getByLabel("Longest delivery time").fill("20");
+    await saveOrdering.click();
     console.log(
       "1 default:",
       await kitchenForm.getByRole("status").innerText({ timeout: 30000 }),
+    );
+    console.log(
+      "1 delivery_minutes row:",
+      JSON.stringify(
+        (
+          await db
+            .from("settings")
+            .select("value")
+            .eq("key", "delivery_minutes")
+            .single()
+        ).data?.value,
+      ),
     );
 
     // Staff closed ordering yesterday; today the default applies.
@@ -136,6 +171,23 @@ async function signIn(page, user, next) {
       code: `R-E${TAG}`.slice(0, 12),
       payment_id: "e2e-test",
     });
+    // Refunded, and for a day next month: listed by when it was paid.
+    await ins("rounds", {
+      id: ids.refunded,
+      play_date: `${today.slice(0, 5)}${String((Number(today.slice(5, 7)) % 12) + 1).padStart(2, "0")}-01`,
+      holes: 18,
+      players: 1,
+      carts: 0,
+      name: `${NAME} refund`,
+      phone: "785-555-0100",
+      email: EMAIL,
+      arrival_time: "Now",
+      arrive_at: new Date().toISOString(),
+      amount_cents: 3000,
+      status: "refunded",
+      code: `R-F${TAG}`.slice(0, 12),
+      payment_id: "e2e-test-2",
+    });
     await ins("orders", {
       id: ids.order,
       hole: 5,
@@ -180,6 +232,24 @@ async function signIn(page, user, next) {
 
     await ap.getByRole("link", { name: "Export" }).click();
     await ap.waitForURL(/\/admin\/export$/);
+    console.log(
+      "4 default range:",
+      await ap.getByLabel("From", { exact: true }).inputValue(),
+      "to",
+      await ap.getByLabel("To", { exact: true }).inputValue(),
+      "| To min:",
+      await ap.getByLabel("To", { exact: true }).getAttribute("min"),
+    );
+    await ap
+      .getByText(/\d+ rows?/)
+      .first()
+      .waitFor({ timeout: 30000 });
+    console.log(
+      "4 counts:",
+      (await ap.locator("form li").allInnerTexts()).map((t) =>
+        t.replace(/\s+/g, " "),
+      ),
+    );
     for (const kind of ["rounds", "orders", "dues"]) {
       const [download] = await Promise.all([
         ap.waitForEvent("download"),
@@ -196,6 +266,13 @@ async function signIn(page, user, next) {
         `4 ${kind}: ${download.suggestedFilename()} | header: ${text.replace(/^﻿/, "").split("\r\n")[0]}`,
       );
       console.log(`  row: ${line.replace(EMAIL, "<email>")}`);
+      if (kind === "rounds") {
+        const refund =
+          text
+            .split("\r\n")
+            .find((l) => l.includes(`E2E Export ${TAG} refund`)) ?? "(missing)";
+        console.log(`  refunded row: ${refund.replace(EMAIL, "<email>")}`);
+      }
     }
 
     const staff = await makeUser("staff");
@@ -205,10 +282,48 @@ async function signIn(page, user, next) {
     await sp.waitForURL(/\/staff$/, { timeout: 60000 });
     const res = await sp.request.get(`${base}/admin/export/rounds`);
     console.log("5 staff download ->", res.status());
-    const bad = await ap.request.get(
-      `${base}/admin/export/rounds?from=2026-10-09&to=2026-10-01`,
+    await ap.goto(`${base}/admin/export/rounds?from=2026-10-09&to=2026-10-01`);
+    console.log(
+      "6 backwards dates ->",
+      new URL(ap.url()).pathname,
+      "|",
+      await ap.getByRole("alert").first().innerText({ timeout: 30000 }),
     );
-    console.log("6 backwards dates ->", bad.status());
+    // Picking a To before From in the form: message, downloads disabled.
+    await ap.getByLabel("From", { exact: true }).fill("2026-10-09");
+    await ap.getByLabel("To", { exact: true }).fill("2026-10-01");
+    console.log(
+      "7 form backwards:",
+      await ap.getByRole("alert").first().innerText(),
+      "| download disabled:",
+      await ap
+        .getByRole("button", { name: /^Download/ })
+        .first()
+        .isDisabled(),
+    );
+    // A range with nothing in it says so before downloading.
+    await ap.getByLabel("From", { exact: true }).fill("2020-01-01");
+    await ap.getByLabel("To", { exact: true }).fill("2020-01-02");
+    await ap
+      .getByText(/only have the column headings/)
+      .first()
+      .waitFor({ timeout: 30000 });
+    const [empty] = await Promise.all([
+      ap.waitForEvent("download"),
+      ap
+        .getByRole("button", { name: /^Download/ })
+        .first()
+        .click(),
+    ]);
+    console.log(
+      "8 empty range:",
+      (await ap.locator("form li").first().innerText()).replace(/\s+/g, " "),
+      "| file lines:",
+      fs
+        .readFileSync(await empty.path(), "utf8")
+        .trim()
+        .split("\r\n").length,
+    );
   } catch (e) {
     for (const [i, pg] of b
       .contexts()
@@ -220,7 +335,7 @@ async function signIn(page, user, next) {
     throw e;
   } finally {
     await b.close();
-    await db.from("rounds").delete().eq("id", ids.round);
+    await db.from("rounds").delete().in("id", [ids.round, ids.refunded]);
     await db.from("orders").delete().eq("id", ids.order);
     await db.from("dues_payments").delete().eq("id", ids.dues);
     for (const row of saved)
@@ -228,8 +343,9 @@ async function signIn(page, user, next) {
         .from("settings")
         .update({ value: row.value, updated_at: row.updated_at })
         .eq("key", row.key);
-    if (!saved.some((r) => r.key === "kitchen_default"))
-      await db.from("settings").delete().eq("key", "kitchen_default");
+    for (const key of ["kitchen_default", "delivery_minutes"])
+      if (!saved.some((r) => r.key === key))
+        await db.from("settings").delete().eq("key", key);
     for (const u of users) await db.auth.admin.deleteUser(u.id);
     console.log("test rows, users and settings restored");
   }

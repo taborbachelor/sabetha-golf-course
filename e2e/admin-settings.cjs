@@ -101,6 +101,7 @@ const isWeekendInKansas = () =>
         .waitFor({ timeout: 30000 });
       return ap
         .locator("form p[role=status], form p[role=alert]")
+        .first()
         .innerText()
         .catch(() => "(no message)");
     };
@@ -119,6 +120,44 @@ const isWeekendInKansas = () =>
       .getByLabel("9 holes")
       .fill(String((await row("cart_rental"))["9"]));
 
+    // Messages name the field and the rule, and the box gets focus.
+    const tryBad = async (label, value, put) => {
+      const input = ap.getByLabel(label);
+      const was = await input.inputValue();
+      await input.fill(value);
+      const msg = await save();
+      const focused = await ap.evaluate(
+        () => document.activeElement?.getAttribute("name") ?? "",
+      );
+      await (put ?? input).fill(was);
+      return `${msg} | focused ${focused}`;
+    };
+    console.log("2 negative:", await tryBad("Weekend 18", "-5"));
+    console.log(
+      "2 too many days:",
+      await tryBad("Days ahead golfers can pay", "90"),
+    );
+    console.log(
+      "2 short hold:",
+      await tryBad("Cart held for 9 holes (min)", "20"),
+    );
+    const wed = ap.locator("div.group", { hasText: "Wednesday" });
+    const wedClosed = await wed.getByLabel("Closed").isChecked();
+    if (wedClosed) await wed.getByLabel("Closed").uncheck();
+    console.log(
+      "2 backwards hours:",
+      await tryBad("Wednesday closes", "01:00"),
+    );
+    if (wedClosed) await wed.getByLabel("Closed").check();
+    console.log(
+      "2 unsaved edits warn on leave:",
+      await ap.evaluate(() => {
+        const e = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(e);
+        return e.defaultPrevented;
+      }),
+    );
+
     await ap.getByLabel("Weekday 9").fill(String(want.weekday));
     await ap.getByLabel("Weekend 9").fill(String(want.weekend));
     const monday = ap.locator("div.group", { hasText: "Monday" });
@@ -126,6 +165,14 @@ const isWeekendInKansas = () =>
     await ap.getByLabel("Monday opens").fill("12:00");
     await ap.getByLabel("Monday closes").fill("18:00");
     console.log("3 save:", await save());
+    console.log(
+      "3 warns on leave after saving:",
+      await ap.evaluate(() => {
+        const e = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(e);
+        return e.defaultPrevented;
+      }),
+    );
     await ap.screenshot({
       path: `${shotDir}/admin-settings.png`,
       fullPage: true,

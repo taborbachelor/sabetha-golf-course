@@ -71,7 +71,7 @@ If the kitchen is closing for an event, tap **Drinks only** or **Ordering closed
 
 ### 6. If they ask: what else is there
 
-- **Memberships**: apply online (lands in Admin → Members for the Club Secretary) and pay dues in full or in halves (March 1 / June 1).
+- **Memberships**: apply online (lands in Admin → Applications & dues for the Club Secretary) and pay dues in full or in halves (March 1 / June 1).
 - **Admin** (`/admin`): change green fees, cart prices, clubhouse hours, the menu, membership types and carts. Changes show on the website immediately. **Export** downloads CSVs of rounds, orders and dues to match against Square.
 - **QR signs**: hole #1, all nine tee boxes, cart stickers.
 - The public site: hours with an Open/Closed badge, rates, the menu as real text (it was a photo), pool, events, clubhouse rental, contact.

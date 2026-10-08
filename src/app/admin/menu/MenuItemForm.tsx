@@ -1,7 +1,9 @@
 "use client";
 
 import { startTransition, useActionState, useState } from "react";
+import { defaultKind } from "@/lib/menu/form";
 import type { MenuRow } from "@/lib/orders/order";
+import { useUnsavedChanges } from "../useUnsavedChanges";
 import { deleteMenuItem, saveMenuItem, type MenuSaveState } from "./actions";
 
 /**
@@ -26,6 +28,7 @@ export function MenuItemForm({
     {},
   );
   const [confirming, setConfirming] = useState(false);
+  const { onChange } = useUnsavedChanges(state);
   const listId = `categories-${item?.id ?? "new"}`;
   const message = delState.message && !delState.ok ? delState : state;
 
@@ -37,6 +40,19 @@ export function MenuItemForm({
         e.preventDefault();
         const data = new FormData(e.currentTarget);
         startTransition(() => save(data));
+      }}
+      onChange={(e) => {
+        onChange();
+        const field = e.target;
+        const form = e.currentTarget;
+        if (!(field instanceof HTMLInputElement)) return;
+        if (field.name === "kind") form.dataset.kindChosen = "yes";
+        // A new item under "Drinks" starts as a drink, unless the admin
+        // already picked a type.
+        if (!item && field.name === "category" && !form.dataset.kindChosen) {
+          const kind = form.elements.namedItem("kind") as RadioNodeList;
+          kind.value = defaultKind(field.value);
+        }
       }}
       noValidate
       className="grid gap-3 sm:grid-cols-6"
@@ -111,8 +127,15 @@ export function MenuItemForm({
           inputMode="numeric"
           min={0}
           defaultValue={item?.sort_order ?? nextSortOrder ?? 0}
+          aria-describedby={`${listId}-order-hint`}
           className="input py-2"
         />
+        <span
+          id={`${listId}-order-hint`}
+          className="mt-1 block text-xs text-stone-500"
+        >
+          Lower numbers show first.
+        </span>
       </label>
 
       <div className="flex flex-wrap items-center gap-2 sm:col-span-6">

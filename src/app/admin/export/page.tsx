@@ -1,71 +1,73 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/auth";
-import { todayIn } from "@/lib/dates";
+import { isIsoDate, todayIn } from "@/lib/dates";
+import { defaultExportRange } from "@/lib/export/range";
 import { EXPORTS } from "@/lib/export/reports";
 import { getSettings } from "@/lib/settings";
+import { ExportForm } from "./ExportForm";
 
 export const metadata: Metadata = {
   title: "Admin: Export",
   robots: { index: false, follow: false },
 };
 
-export default function AdminExportPage() {
+export default function AdminExportPage({
+  searchParams,
+}: PageProps<"/admin/export">) {
   return (
     <Suspense fallback={<p className="text-stone-600">Loading…</p>}>
-      <ExportForm />
+      {searchParams.then((params) => {
+        const one = (key: string) => {
+          const value = params[key];
+          return typeof value === "string" ? value : undefined;
+        };
+        return (
+          <ExportLoader
+            from={one("from")}
+            to={one("to")}
+            error={one("error")}
+          />
+        );
+      })}
     </Suspense>
   );
 }
 
-async function ExportForm() {
+async function ExportLoader({
+  from,
+  to,
+  error,
+}: {
+  from?: string;
+  to?: string;
+  error?: string;
+}) {
   await requireAdmin("/admin/export");
   const { timeZone } = await getSettings();
   const today = todayIn(timeZone);
+  const range = defaultExportRange(today);
 
   return (
-    <form method="get" action="/admin/export/rounds" className="space-y-6">
+    <div className="space-y-6">
       <p className="text-sm text-stone-600">
         Download spreadsheets (CSV, opens in Excel or Google Sheets) to match
-        online payments against the Square dashboard. Only completed payments
-        are included. Rounds are listed by the day they&apos;re for; orders and
-        dues by the day they were paid.
+        online payments against the Square dashboard. Everything is listed by
+        the day it was paid; rounds also show the day they&apos;re for. Only
+        completed payments are included. A refunded round shows an Amount of
+        0.00 (the refund is in its own column), so each Amount column adds up to
+        what Square kept.
       </p>
-      <fieldset className="flex flex-wrap gap-4">
-        <legend className="mb-2 text-lg font-bold">Dates</legend>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">From</span>
-          <input
-            type="date"
-            name="from"
-            defaultValue={`${today.slice(0, 8)}01`}
-            required
-            className="input py-2"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">To</span>
-          <input
-            type="date"
-            name="to"
-            defaultValue={today}
-            required
-            className="input py-2"
-          />
-        </label>
-      </fieldset>
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(EXPORTS).map(([kind, label]) => (
-          <button
-            key={kind}
-            type="submit"
-            formAction={`/admin/export/${kind}`}
-            className="rounded-lg bg-green-800 px-4 py-2.5 font-semibold text-white hover:bg-green-900"
-          >
-            Download {label}
-          </button>
-        ))}
-      </div>
-    </form>
+      <ExportForm
+        kinds={Object.entries(EXPORTS).map(([kind, label]) => ({
+          kind,
+          label,
+        }))}
+        from={from && isIsoDate(from) ? from : range.from}
+        to={to && isIsoDate(to) ? to : range.to}
+        today={today}
+        error={error}
+      />
+    </div>
   );
 }

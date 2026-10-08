@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useState } from "react";
 import type { TierRow } from "@/lib/memberships/tiers";
+import { useUnsavedChanges } from "../useUnsavedChanges";
 import { deleteTier, saveTier, type TierSaveState } from "./actions";
 
 /**
@@ -24,6 +25,8 @@ export function TierForm({
     {},
   );
   const [confirming, setConfirming] = useState(false);
+  const { onChange } = useUnsavedChanges(state);
+  const hintId = `order-hint-${tier?.id ?? "new"}`;
   const message = delState.message && !delState.ok ? delState : state;
 
   return (
@@ -35,6 +38,7 @@ export function TierForm({
         const data = new FormData(e.currentTarget);
         startTransition(() => save(data));
       }}
+      onChange={onChange}
       noValidate
       className="grid gap-3 sm:grid-cols-6"
     >
@@ -63,8 +67,12 @@ export function TierForm({
           inputMode="numeric"
           min={0}
           defaultValue={tier?.sort_order ?? nextSortOrder ?? 0}
+          aria-describedby={hintId}
           className="input py-2"
         />
+        <span id={hintId} className="mt-1 block text-xs text-stone-500">
+          Lower numbers show first.
+        </span>
       </label>
       <label className="block sm:col-span-5">
         <span className="mb-1 block text-sm font-medium">

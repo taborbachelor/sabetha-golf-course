@@ -9,7 +9,7 @@
  */
 const { chromium } = require("playwright-core");
 const fs = require("fs");
-const { randomBytes } = require("crypto");
+const { randomBytes, randomUUID } = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 const base = process.argv[2] || "http://localhost:3000";
 const shotDir = "e2e/.shots";
@@ -49,6 +49,7 @@ async function signIn(page, user, next) {
 
 (async () => {
   const users = [];
+  let duesId;
   const b = await chromium.launch({ channel: "msedge", headless: true });
   try {
     // 1. Apply on a phone.
@@ -110,13 +111,31 @@ async function signIn(page, user, next) {
     await sp.waitForURL(/\/staff$/, { timeout: 30000 });
     console.log("5 staff /admin ->", new URL(sp.url()).pathname);
 
+    // They pay the first half online (email typed in different case).
+    const { data: tier } = await db
+      .from("membership_tiers")
+      .select("id")
+      .eq("name", "Single")
+      .single();
+    duesId = randomUUID();
+    const { error: duesError } = await db.from("dues_payments").insert({
+      id: duesId,
+      member_name: NAME,
+      email: EMAIL.toUpperCase(),
+      tier_id: tier.id,
+      installment: "first",
+      amount_cents: 20000,
+      payment_id: "e2e-test",
+    });
+    if (duesError) throw new Error(duesError.message);
+
     // 3. Admin sees and approves it.
     const admin = await makeUser("admin");
     users.push(admin);
     const ap = await b.newPage({ viewport: { width: 1024, height: 768 } });
     await signIn(ap, admin, "/admin");
     await ap.waitForURL(/\/admin$/, { timeout: 30000 });
-    const card = ap.locator("li", { hasText: NAME });
+    const card = ap.getByRole("listitem", { name: `Application from ${NAME}` });
     await card.waitFor({ timeout: 30000 });
     console.log(
       "6 listed in admin:",
@@ -124,6 +143,22 @@ async function signIn(page, user, next) {
     );
     await ap.screenshot({ path: `${shotDir}/admin-applications.png` });
     await card.getByRole("button", { name: "Approve" }).click();
+    console.log(
+      "7 confirmation:",
+      await ap
+        .getByRole("status")
+        .filter({ hasText: "Approved" })
+        .innerText({ timeout: 30000 }),
+    );
+    // Approved ones fold into "Past applications (N)".
+    const past = ap.locator("details", { hasText: "Past applications" });
+    console.log(
+      "7 folded:",
+      (await past.locator("summary").innerText()).trim(),
+      "| open:",
+      await past.evaluate((d) => d.open),
+    );
+    await past.locator("summary").click();
     await card
       .getByRole("button", { name: "Mark as new" })
       .waitFor({ timeout: 30000 });
@@ -131,6 +166,14 @@ async function signIn(page, user, next) {
       "7 badge:",
       await card.locator("span.rounded-full").innerText(),
     );
+    console.log(
+      "7 card next step + dues:",
+      (await card.locator("div.bg-stone-50").innerText()).replace(/\s+/g, " "),
+    );
+    await ap.screenshot({
+      path: `${shotDir}/admin-applications-approved.png`,
+      fullPage: true,
+    });
     const { data: after } = await db
       .from("membership_applications")
       .select("status")
@@ -150,6 +193,7 @@ async function signIn(page, user, next) {
   } finally {
     await b.close();
     await db.from("membership_applications").delete().eq("email", EMAIL);
+    if (duesId) await db.from("dues_payments").delete().eq("id", duesId);
     for (const u of users) await db.auth.admin.deleteUser(u.id);
     console.log("test rows and users deleted");
   }

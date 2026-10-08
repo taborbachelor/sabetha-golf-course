@@ -59,7 +59,14 @@ export type Settings = {
     outsideCateringFee: number;
   };
   kitchenStatus: "open" | "drinks_only" | "closed";
+  /**
+   * Typical Order to the Course delivery time, in minutes ("10–20 min").
+   * SAMPLE until the club confirms it. Edited in /admin/settings.
+   */
+  deliveryMinutes: DeliveryMinutes;
 };
+
+export type DeliveryMinutes = { min: number; max: number };
 
 export const defaultSettings: Settings = {
   isSample: true,
@@ -108,4 +115,5 @@ export const defaultSettings: Settings = {
     outsideCateringFee: 100,
   },
   kitchenStatus: "open",
+  deliveryMinutes: { min: 10, max: 20 },
 };
