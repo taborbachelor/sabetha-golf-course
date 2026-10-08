@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import { formatPrice } from "@/content/menu";
 import { installmentLabels } from "@/content/memberships";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { requireAdmin } from "@/lib/auth";
 import type { ApplicationStatus } from "@/lib/memberships/application";
 import type { Installment } from "@/lib/memberships/dues";
@@ -11,7 +10,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { setApplicationStatus } from "./actions";
 
 export const metadata: Metadata = {
-  title: "Admin",
+  title: "Admin: Members",
   robots: { index: false, follow: false },
 };
 
@@ -52,17 +51,15 @@ const statusStyles: Record<ApplicationStatus, string> = {
 
 export default function AdminPage() {
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6">
-      <Suspense fallback={<p className="text-stone-600">Loading…</p>}>
-        <AdminHome />
-      </Suspense>
-    </div>
+    <Suspense fallback={<p className="text-stone-600">Loading…</p>}>
+      <AdminHome />
+    </Suspense>
   );
 }
 
 async function AdminHome() {
   await requireAdmin("/admin");
-  const { timeZone } = getSettings();
+  const { timeZone } = await getSettings();
   const supabase = await createServerSupabase();
   const [applications, dues] = await Promise.all([
     supabase
@@ -97,13 +94,6 @@ async function AdminHome() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Admin</h1>
-        <Link href="/staff" className="chip min-h-10 text-sm">
-          Back to Clubhouse
-        </Link>
-      </div>
-
       <section aria-labelledby="applications-heading">
         <h2 id="applications-heading" className="text-xl font-bold">
           Membership applications

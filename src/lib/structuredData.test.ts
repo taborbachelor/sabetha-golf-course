@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getSettings } from "@/content/settings";
+import { defaultSettings } from "@/content/settings";
 import { golfCourseJsonLd } from "./structuredData";
 
 describe("golfCourseJsonLd", () => {
-  const ld = golfCourseJsonLd(getSettings(), "https://example.com");
+  const ld = golfCourseJsonLd(defaultSettings, "https://example.com");
 
   it("is a GolfCourse with the club address", () => {
     expect(ld["@type"]).toBe("GolfCourse");

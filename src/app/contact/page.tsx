@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { HoursList } from "@/components/HoursList";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -8,8 +8,8 @@ export const metadata: Metadata = {
     "Find Sabetha Golf Club at 2551 X Road, about a mile north of Sabetha, Kansas. Phone, email, hours and directions.",
 };
 
-export default function ContactPage() {
-  const { club, clubhouseHours } = getSettings();
+export default async function ContactPage() {
+  const { club, clubhouseHours } = await getSettings();
   const fullAddress = `${club.streetAddress}, ${club.city}, ${club.state} ${club.postalCode}`;
   const mapQuery = encodeURIComponent(`${club.name}, ${fullAddress}`);
 

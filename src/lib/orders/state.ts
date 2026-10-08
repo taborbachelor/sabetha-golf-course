@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { isOpenNow } from "@/lib/hours";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { orderableItems, type KitchenStatus, type MenuRow } from "./order";
@@ -45,7 +45,7 @@ export async function getOrderingState(): Promise<OrderingState> {
       ? kitchenValue
       : "closed";
   const ignoreHoursForDemo = value("ignore_hours_for_demo") === true;
-  const clubhouseOpen = isOpenNow(getSettings(), new Date());
+  const clubhouseOpen = isOpenNow(await getSettings(), new Date());
   const menu = menuRows.data as MenuRow[];
 
   const closedReason =

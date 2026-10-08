@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { tournamentYear, tournaments } from "@/content/events";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Events and Tournaments",
   description: `Sabetha Golf Club ${tournamentYear} tournament schedule: scrambles, the Sabetha 2 Day Open, Club Championship and more.`,
 };
 
-export default function EventsPage() {
-  const { club } = getSettings();
+export default async function EventsPage() {
+  const { club } = await getSettings();
   const months = [...new Set(tournaments.map((t) => t.month))];
 
   return (

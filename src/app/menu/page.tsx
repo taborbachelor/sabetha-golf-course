@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { formatPrice, menuSections } from "@/content/menu";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Menu",
@@ -8,8 +8,8 @@ export const metadata: Metadata = {
     "Clubhouse menu at Sabetha Golf Club: lunch, fryer, dinner and kids' menu with prices.",
 };
 
-export default function MenuPage() {
-  const { club } = getSettings();
+export default async function MenuPage() {
+  const { club } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">

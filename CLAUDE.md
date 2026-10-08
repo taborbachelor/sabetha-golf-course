@@ -13,8 +13,9 @@ Next.js (App Router, TypeScript strict) + Tailwind, Supabase (Postgres, auth, Re
 ```
 src/app/              routes (App Router)
 src/lib/              shared code: payments/ (Square adapter), supabase/ (admin, server, browser clients),
+                      settings/ (getSettings: cached DB settings over the defaults, refreshed on admin save),
                       env.ts (validated env), pricing.ts (quoteRound), dates.ts, hours.ts
-src/content/          settings.ts: placeholder hours, rates, contact (replaced by DB later)
+src/content/          settings.ts: default (sample) hours, rates, contact; admin edits in the DB override them
 supabase/migrations/  SQL migrations. The Supabase project is linked to this repo: merging a migration
                       to main APPLIES it to the demo database. Review before merging.
 docs/                 ISSUES.md (Phase 1), PHASE2_ISSUES.md (Phase 2 tasks + status), CONTENT_AUDIT.md
@@ -45,7 +46,7 @@ Lint, typecheck, test and build must all pass before opening a PR. CI runs the s
 - **Square sandbox only** until Phase 4. No production keys anywhere.
 - **Never commit secrets.** Only `.env.example` (names, no values) is tracked; real values go in `.env.local`.
 - **No tee times.** It is a show-up-and-play club. Do not build or suggest a tee sheet.
-- **Prices, hours and kitchen status come from settings** (`getSettings()` / the `settings` table), never hardcoded in components.
+- **Prices, hours and kitchen status come from settings** (`getSettings()` from `@/lib/settings` / the `settings` table), never hardcoded in components.
 - **Mark placeholder data** as "Sample" so the demo does not misrepresent the club.
 - **Small PRs**, one task each, from a feature branch. Never push to `main`.
 - Keep it simple: no extra services unless they clearly earn their place.

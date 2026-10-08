@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { HoursList } from "@/components/HoursList";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { getOrderingState } from "@/lib/orders/state";
 import { OrderForm } from "./OrderForm";
 
@@ -56,7 +56,7 @@ async function OrderLoader({ hole }: { hole: number | null }) {
             Clubhouse hours
           </h2>
           <div className="mt-2">
-            <HoursList clubhouseHours={getSettings().clubhouseHours} />
+            <HoursList clubhouseHours={(await getSettings()).clubhouseHours} />
           </div>
         </section>
       </div>

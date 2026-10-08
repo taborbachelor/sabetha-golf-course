@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 import { requireStaff } from "@/lib/auth";
 import { fetchBoard } from "@/lib/staff/queries";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -25,7 +25,7 @@ export default function StaffPage() {
 
 async function StaffHome() {
   const user = await requireStaff("/staff");
-  const { timeZone } = getSettings();
+  const { timeZone } = await getSettings();
   const initial = await fetchBoard(await createServerSupabase(), timeZone);
 
   return (

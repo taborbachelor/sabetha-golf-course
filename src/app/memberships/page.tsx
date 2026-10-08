@@ -8,7 +8,7 @@ import {
   memberPerks,
   sampleTiers,
 } from "@/content/memberships";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "Memberships",
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
     "How to join Sabetha Golf Club: membership types, dues schedule, new-member and under-30 rates, and Cart Shed rental.",
 };
 
-export default function MembershipsPage() {
-  const { club } = getSettings();
+export default async function MembershipsPage() {
+  const { club } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">

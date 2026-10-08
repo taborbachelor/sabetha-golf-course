@@ -3,7 +3,7 @@ import Link from "next/link";
 import { heroPhoto } from "@/content/photos";
 import { HoursList } from "@/components/HoursList";
 import { RatesTable } from "@/components/RatesTable";
-import { getSettings } from "@/content/settings";
+import { getSettings } from "@/lib/settings";
 
 const ctas = [
   {
@@ -23,8 +23,9 @@ const ctas = [
   },
 ];
 
-export default function Home() {
-  const { club, course, clubhouseHours, greenFees, cartRental } = getSettings();
+export default async function Home() {
+  const { club, course, clubhouseHours, greenFees, cartRental } =
+    await getSettings();
 
   return (
     <>
