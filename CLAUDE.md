@@ -42,3 +42,4 @@ Lint, typecheck, test and build must all pass before opening a PR. CI runs the s
 - **Small PRs**, one task each, from a feature branch. Never push to `main`.
 - Keep it simple: no extra services unless they clearly earn their place.
 - Other hard decisions (PLAN.md section 3): no golfer accounts in v1; walk-ins keep paying at the POS.
+- **No email sending.** No email sender service for this project. Confirmations are on-screen pages; membership applications are stored in the DB and reviewed in /admin.

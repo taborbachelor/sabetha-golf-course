@@ -61,7 +61,7 @@ Pages: Home, Golf (course, rates, rules), Memberships, Menu (real text, not an i
 
 - Flow: choose date (default today), 9 or 18, number of players, optional cart (count), arrival time ("Now / ~15 min / ~30 min / later today: pick a time"), name, phone, email → pay.
 - Weekday/weekend price computed from the date. Prices come from settings.
-- Confirmation page + email: name, party size, holes, cart yes/no, **QR code**, order number. The QR is a receipt; the real check is the staff "Paid today" list.
+- Confirmation page (no email; the page is the receipt): name, party size, holes, cart yes/no, **QR code**, order number. The QR is a receipt; the real check is the staff "Paid today" list.
 - **Cart inventory:** a cart can only be reserved online if one is available (total carts minus carts out minus carts reserved for that window). Otherwise show "No carts available online, ask at the clubhouse."
 - Honor-box replacement: a sign/QR at hole #1 that links straight to Pay to Play.
 
@@ -85,7 +85,7 @@ One screen, big touch targets, live via Realtime, with an audible chime on new i
 **2d. Memberships**
 
 - Membership page lists tiers (placeholder prices until the club provides real ones), including the new-member and under-30 rates and the Cart Shed add-on.
-- **Online application form** → saved to the DB and emailed to the Club Secretary. The board/secretary still approves.
+- **Online application form** → saved to the DB and shown in the admin screen for the Club Secretary to review (no email sending). The board/secretary still approves.
 - **Online dues payment** for approved members: pay in full, or the first/second half. Reference by member name/email; no member login in v1.
 
 **2e. Admin (`/admin`, staff-admin role)**
