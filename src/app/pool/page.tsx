@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PhotoGrid } from "@/components/PhotoGrid";
+import { poolPhotos } from "@/content/photos";
 import { poolFacilities, poolRules, poolSeason } from "@/content/pool";
 import { getSettings } from "@/content/settings";
 import { formatTime } from "@/lib/hours";
@@ -32,6 +34,10 @@ export default function PoolPage() {
           </dd>
         </div>
       </dl>
+
+      <div className="mt-8">
+        <PhotoGrid photos={poolPhotos} layout="tiles" />
+      </div>
 
       <section aria-labelledby="facilities-heading" className="mt-10">
         <h2 id="facilities-heading" className="text-xl font-bold">

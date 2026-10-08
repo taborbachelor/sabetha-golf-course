@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PhotoGrid } from "@/components/PhotoGrid";
 import { RatesTable } from "@/components/RatesTable";
 import { clubHistory, courseDescription, golfRules } from "@/content/golf";
+import { courseGallery } from "@/content/photos";
 import { getSettings } from "@/content/settings";
 
 export const metadata: Metadata = {
@@ -78,6 +80,15 @@ export default function GolfPage() {
             <li key={rule}>{rule}</li>
           ))}
         </ul>
+      </section>
+
+      <section aria-labelledby="gallery-heading" className="mt-10">
+        <h2 id="gallery-heading" className="text-xl font-bold">
+          Around the course
+        </h2>
+        <div className="mt-3">
+          <PhotoGrid photos={courseGallery} />
+        </div>
       </section>
 
       <section aria-labelledby="history-heading" className="mt-10">

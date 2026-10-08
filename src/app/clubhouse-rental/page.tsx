@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { clubhouseAmenities, rentalRules } from "@/content/clubhouse";
+import { clubhousePhoto } from "@/content/photos";
 import { getSettings } from "@/content/settings";
 
 export const metadata: Metadata = {
@@ -19,6 +21,14 @@ export default function ClubhouseRentalPage() {
         other events. To reserve it, contact the Club Secretary or the clubhouse
         manager.
       </p>
+
+      <Image
+        src={clubhousePhoto.src}
+        alt={clubhousePhoto.alt}
+        placeholder="blur"
+        sizes="(min-width: 768px) 736px, 100vw"
+        className="mt-6 h-auto w-full rounded-lg"
+      />
 
       <dl className="mt-6 space-y-3 rounded-lg bg-stone-100 p-4">
         <div>

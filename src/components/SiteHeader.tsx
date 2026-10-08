@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { logo } from "@/content/photos";
 import { navItems } from "@/lib/nav";
 
 export function SiteHeader({
@@ -18,7 +20,18 @@ export function SiteHeader({
     <header className="sticky top-0 z-20 border-b border-black/10 bg-green-900 text-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <Link href="/" onClick={close} className="text-lg font-semibold">
+          <Link
+            href="/"
+            onClick={close}
+            className="flex items-center gap-2 text-lg font-semibold"
+          >
+            <Image
+              src={logo.src}
+              alt=""
+              width={36}
+              height={36}
+              className="size-9 shrink-0 rounded-full bg-white"
+            />
             {clubName}
           </Link>
           {badge}

@@ -1,4 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
+import { heroPhoto } from "@/content/photos";
 import { HoursList } from "@/components/HoursList";
 import { RatesTable } from "@/components/RatesTable";
 import { getSettings } from "@/content/settings";
@@ -26,7 +28,20 @@ export default function Home() {
 
   return (
     <>
-      <section className="bg-gradient-to-b from-green-900 to-green-800 text-white">
+      <section className="relative isolate overflow-hidden bg-green-900 text-white">
+        <Image
+          src={heroPhoto.src}
+          alt={heroPhoto.alt}
+          fill
+          preload
+          placeholder="blur"
+          sizes="100vw"
+          className="-z-20 object-cover"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-green-950/60 sm:bg-transparent sm:bg-gradient-to-r sm:from-green-950/85 sm:via-green-950/50 sm:to-green-950/10"
+        />
         <div className="mx-auto max-w-6xl px-4 py-8 sm:py-14">
           <p className="text-sm tracking-wide text-green-200 uppercase">
             {club.city}, {club.state} · Est. {course.established}
