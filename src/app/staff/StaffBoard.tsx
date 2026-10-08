@@ -15,25 +15,33 @@ import {
   buildCartBoard,
   needsCart,
   newRoundIds,
+  NEXT_ORDER_STEP,
+  ORDER_STATUS_LABEL,
+  orderQueue,
+  waitingFor,
   type CartTile,
+  type OrderRow,
   type SessionRow,
 } from "@/lib/staff/board";
 import { fetchBoard, type BoardData } from "@/lib/staff/queries";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { timeIn } from "@/lib/time";
 import {
+  advanceOrder,
   assignCart,
   markOut,
   markReady,
   markReturned,
   rentWalkIn,
+  setIgnoreHoursForDemo,
+  setKitchenStatus,
   unassignCart,
   type BoardResult,
 } from "./board-actions";
 
-type Props = { initial: BoardData; timeZone: string };
+type Props = { initial: BoardData; timeZone: string; isAdmin: boolean };
 
-export function StaffBoard({ initial, timeZone }: Props) {
+export function StaffBoard({ initial, timeZone, isAdmin }: Props) {
   const [data, setData] = useState(initial);
   const [live, setLive] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
@@ -44,7 +52,10 @@ export function StaffBoard({ initial, timeZone }: Props) {
   const [, startRefresh] = useTransition();
 
   const supabase = useMemo(() => createBrowserSupabase(), []);
-  const seen = useRef(new Set(initial.rounds.map((r) => r.id)));
+  // Rounds and orders already on screen; anything new chimes and flashes.
+  const seen = useRef(
+    new Set([...initial.rounds, ...initial.orders].map((r) => r.id)),
+  );
   const soundRef = useRef(false);
   useEffect(() => {
     soundRef.current = soundOn;
@@ -57,7 +68,10 @@ export function StaffBoard({ initial, timeZone }: Props) {
     startRefresh(async () => {
       try {
         const next = await fetchBoard(supabase, timeZone);
-        const fresh = newRoundIds(next.rounds, seen.current);
+        const fresh = newRoundIds(
+          [...next.rounds, ...next.orders.filter((o) => o.status === "new")],
+          seen.current,
+        );
         for (const id of fresh) seen.current.add(id);
         if (fresh.length) {
           if (soundRef.current) chime();
@@ -86,7 +100,13 @@ export function StaffBoard({ initial, timeZone }: Props) {
       timer = setTimeout(refresh, 250);
     };
     const channel = supabase.channel("staff-board");
-    for (const table of ["rounds", "cart_sessions", "carts"]) {
+    for (const table of [
+      "rounds",
+      "cart_sessions",
+      "carts",
+      "orders",
+      "settings",
+    ]) {
       channel.on(
         "postgres_changes",
         { event: "*", schema: "public", table },
@@ -111,6 +131,14 @@ export function StaffBoard({ initial, timeZone }: Props) {
   );
   const waiting = useMemo(() => needsCart(data.sessions), [data]);
   const free = availableCarts(board);
+  const queue = useMemo(() => orderQueue(data.orders), [data]);
+
+  // Re-render every 30s so "waiting 4 min" stays current.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   async function run(key: string, action: () => Promise<BoardResult>) {
     setBusy(key);
@@ -158,6 +186,32 @@ export function StaffBoard({ initial, timeZone }: Props) {
         >
           {soundOn ? "Sound on" : "Tap to turn on sound"}
         </button>
+        <KitchenToggle
+          value={data.kitchen}
+          busy={busy === "kitchen"}
+          onChange={(status) => {
+            // Show the change at once; the refresh after the action confirms
+            // it (or puts it back if the save failed).
+            setData((d) => ({ ...d, kitchen: status }));
+            void run("kitchen", () => setKitchenStatus(status));
+          }}
+        />
+        {isAdmin && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={data.ignoreHoursForDemo}
+              disabled={busy === "demo"}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setData((d) => ({ ...d, ignoreHoursForDemo: on }));
+                void run("demo", () => setIgnoreHoursForDemo(on));
+              }}
+              className="size-5 accent-green-800"
+            />
+            Demo: take orders outside hours
+          </label>
+        )}
         <button
           type="button"
           onClick={() => setWalkInCart(free[0]?.id ?? "")}
@@ -195,7 +249,33 @@ export function StaffBoard({ initial, timeZone }: Props) {
         />
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-[1fr_1fr_1.5fr]">
+        <section aria-labelledby="orders-heading">
+          <h2 id="orders-heading" className="text-lg font-bold">
+            Orders {queue.length > 0 && <Count n={queue.length} />}
+          </h2>
+          {queue.length === 0 ? (
+            <p className="mt-2 text-sm text-stone-500">No orders waiting.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {queue.map((o) => (
+                <OrderCard
+                  key={o.id}
+                  order={o}
+                  waited={waitingFor(o.created_at, new Date(now))}
+                  flash={flash.has(o.id)}
+                  busy={busy === o.id}
+                  onNext={() =>
+                    run(o.id, () =>
+                      advanceOrder(o.id, NEXT_ORDER_STEP[o.status].to),
+                    )
+                  }
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
         <div className="space-y-6">
           <section aria-labelledby="needs-heading">
             <h2 id="needs-heading" className="text-lg font-bold">
@@ -267,14 +347,14 @@ export function StaffBoard({ initial, timeZone }: Props) {
           </section>
         </div>
 
-        <section aria-labelledby="carts-heading" className="lg:col-span-2">
+        <section aria-labelledby="carts-heading">
           <h2 id="carts-heading" className="text-lg font-bold">
             Carts{" "}
             <span className="text-sm font-normal text-stone-500">
               {free.length} available
             </span>
           </h2>
-          <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <ul className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {board.map((tile) => (
               <CartCard
                 key={tile.cart.id}
@@ -300,6 +380,116 @@ export function StaffBoard({ initial, timeZone }: Props) {
           </ul>
         </section>
       </div>
+    </div>
+  );
+}
+
+const ORDER_STYLE = {
+  new: "border-red-400 bg-red-50",
+  preparing: "border-amber-300 bg-amber-50",
+  out_for_delivery: "border-green-700 bg-green-50",
+} as const;
+
+function OrderCard({
+  order,
+  waited,
+  flash,
+  busy,
+  onNext,
+}: {
+  order: OrderRow;
+  waited: string;
+  flash: boolean;
+  busy: boolean;
+  onNext: () => void;
+}) {
+  const step = NEXT_ORDER_STEP[order.status];
+  return (
+    <li
+      className={`rounded-xl border-2 p-3 ${ORDER_STYLE[order.status]} ${
+        flash ? "ring-4 ring-red-300" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-2xl leading-none font-bold">Hole {order.hole}</p>
+          <p className="mt-1 font-semibold">{order.name}</p>
+        </div>
+        <div className="text-right text-sm">
+          <p className="font-semibold uppercase">
+            {ORDER_STATUS_LABEL[order.status]}
+          </p>
+          <p className="text-stone-600">{waited}</p>
+          <p className="font-mono text-stone-500">{order.code}</p>
+        </div>
+      </div>
+      {order.has_alcohol && (
+        <p className="mt-2 inline-block rounded bg-amber-200 px-2 py-0.5 text-sm font-bold text-amber-950">
+          21+ CHECK ID
+        </p>
+      )}
+      <ul className="mt-2 text-sm">
+        {order.items.map((line) => (
+          <li key={line.id}>
+            <span className="font-semibold">{line.qty}×</span> {line.name}
+            {line.is_alcohol && <span className="text-amber-800"> (21+)</span>}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <a
+          href={`tel:${order.phone.replace(/\D/g, "")}`}
+          className="text-sm text-stone-600 underline"
+        >
+          {order.phone}
+        </a>
+        <Btn primary disabled={busy} onClick={onNext}>
+          {step.label}
+        </Btn>
+      </div>
+    </li>
+  );
+}
+
+const KITCHEN_OPTIONS = [
+  { value: "open", label: "Kitchen open" },
+  { value: "drinks_only", label: "Drinks only" },
+  { value: "closed", label: "Ordering closed" },
+] as const;
+
+function KitchenToggle({
+  value,
+  busy,
+  onChange,
+}: {
+  value: BoardData["kitchen"];
+  busy: boolean;
+  onChange: (status: BoardData["kitchen"]) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Ordering to the course"
+      className="flex overflow-hidden rounded-lg border border-stone-300"
+    >
+      {KITCHEN_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
+          disabled={busy}
+          onClick={() => value !== o.value && onChange(o.value)}
+          className={`min-h-10 px-3 text-sm font-semibold ${
+            value === o.value
+              ? o.value === "closed"
+                ? "bg-stone-700 text-white"
+                : "bg-green-800 text-white"
+              : "bg-white hover:bg-stone-50"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
