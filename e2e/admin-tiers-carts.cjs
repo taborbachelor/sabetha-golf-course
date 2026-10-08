@@ -125,7 +125,9 @@ async function tierCard(page) {
     await ap.waitForURL(/\/admin\/carts$/);
     const count = async () =>
       (
-        await ap.locator("p", { hasText: /^\d+ carts? in service$/ }).innerText()
+        await ap
+          .locator("p", { hasText: /^\d+ carts? in service$/ })
+          .innerText()
       ).replace(/\s+/g, " ");
     const before = await count();
     await ap.getByRole("button", { name: "Add a cart" }).click();

@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { getSettings } from "@/lib/settings";
 import { isOpenNow } from "@/lib/hours";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { effectiveKitchen } from "./kitchen";
 import { orderableItems, type KitchenStatus, type MenuRow } from "./order";
 
 export type OrderingState = {
@@ -26,8 +27,12 @@ export async function getOrderingState(): Promise<OrderingState> {
   const [settingsRows, menuRows] = await Promise.all([
     db
       .from("settings")
-      .select("key, value")
-      .in("key", ["kitchen_status", "ignore_hours_for_demo"]),
+      .select("key, value, updated_at")
+      .in("key", [
+        "kitchen_status",
+        "kitchen_default",
+        "ignore_hours_for_demo",
+      ]),
     db
       .from("menu_items")
       .select(
@@ -37,15 +42,17 @@ export async function getOrderingState(): Promise<OrderingState> {
   if (settingsRows.error) throw settingsRows.error;
   if (menuRows.error) throw menuRows.error;
 
-  const value = (key: string) =>
-    settingsRows.data.find((r) => r.key === key)?.value as unknown;
-  const kitchenValue = value("kitchen_status");
-  const kitchen: KitchenStatus =
-    kitchenValue === "open" || kitchenValue === "drinks_only"
-      ? kitchenValue
-      : "closed";
+  const row = (key: string) => settingsRows.data.find((r) => r.key === key);
+  const value = (key: string) => row(key)?.value as unknown;
+  const settings = await getSettings();
+  const kitchen: KitchenStatus = effectiveKitchen({
+    status: value("kitchen_status"),
+    setAt: row("kitchen_status")?.updated_at,
+    defaultStatus: value("kitchen_default"),
+    timeZone: settings.timeZone,
+  });
   const ignoreHoursForDemo = value("ignore_hours_for_demo") === true;
-  const clubhouseOpen = isOpenNow(await getSettings(), new Date());
+  const clubhouseOpen = isOpenNow(settings, new Date());
   const menu = menuRows.data as MenuRow[];
 
   const closedReason =
