@@ -39,8 +39,8 @@ Each item is one small PR, merged when CI and the Vercel preview pass. Square st
 12. **Honor-box QR signs**: printable QR sheets for hole #1 (Pay to Play), carts and tee boxes (Order to the Course, with hole number). _Done when:_ the sheets print cleanly and the codes open the right pages.
     - Status: ✅ `/admin/signs` (admin, "QR signs" tab): hole #1 Pay to Play sign with current prices, one tee-box sign per hole (`/order?hole=N`), and a sheet of 6 cart stickers (`/order`). Letter paper, one sign per page, no site chrome when printed. `npm run e2e:signs` regenerates every printed code from its URL and compares, opens each URL, and prints PDFs (1 / 9 / 1 pages).
 13. **End-to-end demo check**: run the Phase 2 "done when" on the deployed site with a phone and a tablet-sized browser; fix anything that breaks. _Done when:_ the full walkthrough passes and is written up for the pitch.
-    - Status: ⏭️ Next
+    - Status: ✅ `npm run e2e:demo` runs the whole walkthrough on the live site (iPhone-sized phone + iPad-sized tablet) and sweeps every public page on the phone and the staff/admin screens on the tablet (landscape and portrait) for sideways scrolling and page errors: three clean runs, nothing to fix in the app. Write-up with screenshots for the pitch: [DEMO.md](./DEMO.md).
 
 ## Progress (2026-10-08)
 
-Tasks 1–12 are merged and verified on the deployed site with `npm run e2e` (sandbox payments, temporary users, cleanup afterwards). Paying for a round with a cart and ordering a drink to a hole both work end to end. Next: task 13 (end-to-end demo check).
+**Phase 2 is done.** All 13 tasks are merged and verified on the deployed site. The Phase 2 "done when" (pay for a round with a cart on a phone, see it on the tablet, mark the cart ready, order a drink from hole 5, walk it to Delivered) passes end to end with sandbox payments; see [DEMO.md](./DEMO.md). Next: Phase 3, the pitch (PLAN.md section 5).
