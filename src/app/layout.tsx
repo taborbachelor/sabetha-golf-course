@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getSettings } from "@/content/settings";
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  const { club } = getSettings();
+  const { club, timeZone, clubhouseHours } = getSettings();
 
   return (
     <html
@@ -32,7 +33,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <SiteHeader clubName={club.name} />
+        <SiteHeader
+          clubName={club.name}
+          badge={
+            <OpenNowBadge timeZone={timeZone} clubhouseHours={clubhouseHours} />
+          }
+        />
         <main className="flex flex-1 flex-col">{children}</main>
         <SiteFooter club={club} />
       </body>
