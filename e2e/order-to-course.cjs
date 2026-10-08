@@ -246,8 +246,8 @@ const focused = (p) =>
       await tel.getAttribute("href"),
     );
     check(
-      "status: delivery time from settings",
-      /Usually (about )?\d+(–\d+)? minutes\. Keep playing — we'll find you by name\./.test(
+      "status: delivery time from settings, marked Sample",
+      /Usually (about )?\d+(–\d+)? minutes\. Keep playing — we'll find you by name\.\s*Sample/.test(
         await p.locator("main").innerText(),
       ),
     );

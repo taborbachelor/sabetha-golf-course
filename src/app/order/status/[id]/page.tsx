@@ -82,6 +82,11 @@ async function OrderStatusView({
         <p className="text-stone-700">
           {deliveryEstimate(settings.deliveryMinutes)} Keep playing — we&apos;ll
           find you by name.
+          {settings.isSample && (
+            <span className="ml-2 rounded-full bg-stone-100 px-2 py-0.5 text-xs whitespace-nowrap text-stone-600">
+              Sample
+            </span>
+          )}
         </p>
       )}
 
