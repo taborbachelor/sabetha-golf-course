@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { defaultSettings } from "@/content/settings";
 import { dayOfWeek, isIsoDate, todayIn } from "./dates";
-import { maxCartsFor, quoteRound } from "./pricing";
+import { cartPriceHint, maxCartsFor, quoteRound } from "./pricing";
+
+describe("cartPriceHint", () => {
+  it("shows the cart price for the chosen holes, from settings", () => {
+    expect(cartPriceHint(defaultSettings.cartRental, 9)).toBe("$15 each");
+    expect(cartPriceHint(defaultSettings.cartRental, 18)).toBe("$20 each");
+    expect(cartPriceHint({ 9: 12.5, 18: 20 }, 9)).toBe("$12.50 each");
+  });
+});
 
 // Sample rates: weekday 9=$20/18=$30, weekend 9=$25/18=$35; cart 9=$15/18=$20.
 const settings = defaultSettings;

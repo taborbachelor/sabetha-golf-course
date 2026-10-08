@@ -17,6 +17,13 @@ export type ChargeResult =
       ok: false;
       /** True when the card was refused (show "try another card"), false for system errors. */
       declined: boolean;
+      /**
+       * True when we can't tell whether the charge happened (network error,
+       * timeout, a 5xx or an unreadable reply). Don't give up on the
+       * checkout: retry with the SAME idempotency key and source token, and
+       * the provider either replays the earlier result or charges once now.
+       */
+      retryable: boolean;
       code: string;
       message: string;
     };

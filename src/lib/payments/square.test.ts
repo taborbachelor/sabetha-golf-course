@@ -79,6 +79,85 @@ describe("Square provider", () => {
     ).toMatchObject({ ok: false, declined: false, code: "NETWORK_ERROR" });
   });
 
+  it("marks definite failures as not retryable", async () => {
+    const declined = vi.fn().mockResolvedValue(
+      jsonResponse(400, {
+        errors: [{ code: "CARD_DECLINED", category: "PAYMENT_METHOD_ERROR" }],
+      }),
+    );
+    expect(
+      await createSquareProvider(config, declined).charge(request),
+    ).toMatchObject({ ok: false, declined: true, retryable: false });
+
+    const badToken = vi.fn().mockResolvedValue(
+      jsonResponse(400, {
+        errors: [
+          { code: "CARD_TOKEN_USED", category: "INVALID_REQUEST_ERROR" },
+        ],
+      }),
+    );
+    expect(
+      await createSquareProvider(config, badToken).charge(request),
+    ).toMatchObject({ ok: false, retryable: false, code: "CARD_TOKEN_USED" });
+  });
+
+  it("marks anything that might have charged as retryable", async () => {
+    const cases: [string, typeof fetch][] = [
+      // Never reached Square.
+      [
+        "NETWORK_ERROR",
+        vi.fn().mockRejectedValue(new TypeError("fetch failed")),
+      ],
+      // Square's own trouble.
+      [
+        "INTERNAL_SERVER_ERROR",
+        vi.fn().mockResolvedValue(
+          jsonResponse(500, {
+            errors: [{ code: "INTERNAL_SERVER_ERROR", category: "API_ERROR" }],
+          }),
+        ),
+      ],
+      [
+        "HTTP_503",
+        vi.fn().mockResolvedValue(new Response("<html>", { status: 503 })),
+      ],
+      [
+        "RATE_LIMITED",
+        vi.fn().mockResolvedValue(
+          jsonResponse(429, {
+            errors: [{ code: "RATE_LIMITED", category: "RATE_LIMIT_ERROR" }],
+          }),
+        ),
+      ],
+      // Charged, but the reply was cut off.
+      [
+        "HTTP_200",
+        vi.fn().mockResolvedValue(new Response('{"paym', { status: 200 })),
+      ],
+    ];
+    for (const [code, fetchMock] of cases) {
+      expect(
+        await createSquareProvider(config, fetchMock).charge(request),
+      ).toMatchObject({ ok: false, declined: false, retryable: true, code });
+    }
+  });
+
+  it("gives up waiting after the timeout, as retryable", async () => {
+    const hang = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason),
+          );
+        }),
+    );
+    expect(
+      await createSquareProvider(config, hang as typeof fetch, 20).charge(
+        request,
+      ),
+    ).toMatchObject({ ok: false, retryable: true, code: "TIMEOUT" });
+  });
+
   it("refuses non-positive or fractional amounts without calling Square", async () => {
     const fetchMock = vi.fn();
     const provider = createSquareProvider(config, fetchMock);

@@ -25,6 +25,18 @@ export function maxCartsFor(players: number): number {
   return Math.ceil(players / 2);
 }
 
+/** The Carts hint on Pay to Play, e.g. "$15 each" for 9 holes. Whole dollars drop the cents. */
+export function cartPriceHint(
+  cartRental: Settings["cartRental"],
+  holes: Holes,
+): string {
+  const dollars = cartRental[holes];
+  const price = Number.isInteger(dollars)
+    ? `$${dollars}`
+    : `$${dollars.toFixed(2)}`;
+  return `${price} each`;
+}
+
 /**
  * Price for a round. Always computed on the server from settings; the
  * browser never sends an amount. Throws on invalid input.
