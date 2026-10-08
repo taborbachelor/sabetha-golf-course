@@ -53,3 +53,14 @@ body {
     break-after: auto;
   }
 }
+
+/* Apple Pay button (SquareCard): Safari draws it natively; other browsers never show it. */
+.apple-pay-button {
+  display: block;
+  width: 100%;
+  height: 48px;
+  border-radius: 8px;
+  -webkit-appearance: -apple-pay-button;
+  -apple-pay-button-type: plain;
+  -apple-pay-button-style: black;
+}
