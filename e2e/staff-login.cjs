@@ -83,12 +83,16 @@ const email = `staff-test-${Date.now()}@example.com`,
       "5 signed in:",
       new URL(p.url()).pathname,
       "|",
-      (await p.locator("main form span").first().innerText()).replace(
-        email,
-        "<test user>",
-      ),
+      (await p.getByText(email).count()) === 1
+        ? "<test user> shown"
+        : "email missing",
     );
+    // Sign out asks first (inline, not a browser dialog).
     await p.getByRole("button", { name: "Sign out" }).click();
+    await p
+      .getByRole("group", { name: "Confirm sign out" })
+      .getByRole("button", { name: "Yes, sign out" })
+      .click();
     await p.waitForURL(/\/staff\/login/);
     await p.goto(`${base}/staff`);
     console.log("6 after sign out /staff ->", new URL(p.url()).pathname);

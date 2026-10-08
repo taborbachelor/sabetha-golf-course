@@ -93,6 +93,11 @@ const current = (p) =>
     .catch(() => "(none)");
 
 (async () => {
+  const { data: saved, error: savedError } = await db
+    .from("settings")
+    .select("key, value, updated_at")
+    .in("key", ["kitchen_status", "ignore_hours_for_demo"]);
+  if (savedError) throw savedError;
   const admin = await makeUser("admin");
   const staff = await makeUser("staff");
   const browser = await chromium.launch({ channel: "msedge", headless: true });
@@ -136,7 +141,8 @@ const current = (p) =>
       ["Start", "Preparing"],
       ["Send out", "On the way"],
     ]) {
-      await card.getByRole("button", { name: button }).click();
+      // A double tap must only move the order one step.
+      await card.getByRole("button", { name: button }).dblclick();
       await phone.waitForFunction(
         (s) =>
           document
@@ -145,9 +151,12 @@ const current = (p) =>
         phoneStep,
         { timeout: 20000 },
       );
+      await new Promise((r) => setTimeout(r, 1500));
       console.log(
-        `4 tablet "${button}" -> phone shows "${(await current(phone)).trim()}"`,
+        `4 tablet double-tap "${button}" -> phone shows "${(await current(phone)).trim()}"`,
       );
+      if (!(await current(phone)).includes(phoneStep))
+        throw new Error(`double tap on ${button} skipped a step`);
     }
     await tab.screenshot({ path: `${shotDir}/queue-out.png` });
     await card.getByRole("button", { name: "Delivered" }).click();
@@ -208,14 +217,14 @@ const current = (p) =>
     console.log("page errors:", errs.length ? errs : "none");
   } finally {
     await browser.close();
-    await db
-      .from("settings")
-      .update({ value: false })
-      .eq("key", "ignore_hours_for_demo");
-    await db
-      .from("settings")
-      .update({ value: "open" })
-      .eq("key", "kitchen_status");
+    // Put both settings back exactly as they were (value and updated_at:
+    // the kitchen status in effect depends on when it was set).
+    for (const row of saved) {
+      await db
+        .from("settings")
+        .update({ value: row.value, updated_at: row.updated_at })
+        .eq("key", row.key);
+    }
     const { data: gone } = await db
       .from("orders")
       .delete()
@@ -224,7 +233,7 @@ const current = (p) =>
     await db.auth.admin.deleteUser(admin.id);
     await db.auth.admin.deleteUser(staff.id);
     console.log(
-      "cleanup: settings reset (demo off, kitchen open); deleted orders:",
+      "cleanup: settings restored; deleted orders:",
       (gone || []).map((o) => o.status).join(", "),
       "; test users deleted",
     );

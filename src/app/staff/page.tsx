@@ -5,7 +5,7 @@ import { getSettings } from "@/lib/settings";
 import { requireStaff } from "@/lib/auth";
 import { fetchBoard } from "@/lib/staff/queries";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { signOut } from "./actions";
+import { SignOut } from "./SignOut";
 import { StaffBoard } from "./StaffBoard";
 
 export const metadata: Metadata = {
@@ -25,30 +25,29 @@ export default function StaffPage() {
 
 async function StaffHome() {
   const user = await requireStaff("/staff");
-  const { timeZone } = await getSettings();
+  const { timeZone, roundMinutes } = await getSettings();
   const initial = await fetchBoard(await createServerSupabase(), timeZone);
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Clubhouse</h1>
-        <form action={signOut} className="flex items-center gap-3 text-sm">
-          <span className="text-stone-600">
-            {user.email} · {user.role}
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-xs text-stone-500" title={user.email}>
+            {user.email}
           </span>
           {user.role === "admin" && (
             <Link href="/admin" className="chip min-h-10">
               Admin
             </Link>
           )}
-          <button type="submit" className="chip min-h-10">
-            Sign out
-          </button>
-        </form>
+          <SignOut />
+        </div>
       </div>
       <StaffBoard
         initial={initial}
         timeZone={timeZone}
+        roundMinutes={roundMinutes}
         isAdmin={user.role === "admin"}
       />
     </div>

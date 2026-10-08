@@ -1,5 +1,9 @@
 /** Staff tablet data shapes and the pure logic that turns rows into the board. */
 
+import { todayIn } from "@/lib/dates";
+import { formatTime } from "@/lib/hours";
+import { timeIn } from "@/lib/time";
+
 export type CartRow = { id: string; number: number; active: boolean };
 
 export type SessionStatus = "reserved" | "ready" | "out" | "returned";
@@ -67,11 +71,129 @@ export function buildCartBoard(
     });
 }
 
-/** Online reservations still waiting for staff to pick a cart. */
-export function needsCart(sessions: SessionRow[]): SessionRow[] {
+/** Calendar day "YYYY-MM-DD" of an instant, in the club's time zone. */
+export function clubDay(iso: string, timeZone: string): string {
+  return todayIn(timeZone, new Date(iso));
+}
+
+/**
+ * Online reservations still waiting for staff to pick a cart: today's only
+ * (club time), and only once the round is paid. Checkout holds the cart
+ * session a moment before the card is charged, so an unpaid (abandoned,
+ * declined) round never shows here; yesterday's no-shows drop off too.
+ */
+export function needsCart(
+  sessions: SessionRow[],
+  opts: { today: string; timeZone: string; paidRoundIds: Set<string> },
+): SessionRow[] {
   return sessions
-    .filter((s) => s.status === "reserved" && !s.cart_id)
-    .sort((a, b) => (a.reserved_for ?? "").localeCompare(b.reserved_for ?? ""));
+    .filter(
+      (s) =>
+        s.status === "reserved" &&
+        !s.cart_id &&
+        s.round_id !== null &&
+        opts.paidRoundIds.has(s.round_id) &&
+        s.reserved_for !== null &&
+        clubDay(s.reserved_for, opts.timeZone) === opts.today,
+    )
+    .sort(
+      (a, b) =>
+        (a.reserved_for ?? "").localeCompare(b.reserved_for ?? "") ||
+        a.id.localeCompare(b.id),
+    );
+}
+
+/**
+ * How many free carts the reservations in `waiting` (from needsCart) still
+ * need, as seen by a walk-in taking a cart now for `minutes`.
+ *
+ * Same rule as online checkout (lib/carts): a reservation holds a cart for
+ * its whole window, so it clashes with any rental whose window overlaps it.
+ * A walk-in leaving now overlaps every reservation arriving before the cart
+ * is back, plus any that are already late. Reservations that already have a
+ * cart are on that cart's tile, so they aren't counted again here.
+ */
+export function heldForOnline(
+  waiting: SessionRow[],
+  minutes: number,
+  now: Date = new Date(),
+): number {
+  const until = now.getTime() + minutes * 60_000;
+  return waiting.filter(
+    (s) => !s.reserved_for || new Date(s.reserved_for).getTime() < until,
+  ).length;
+}
+
+/**
+ * "cart 1 of 2" labels for parties with more than one cart, keyed by
+ * session id. Grouped by round; the total is what the golfer paid for, so a
+ * party still says "of 2" after one of its carts comes back.
+ */
+export function partyCartLabels(
+  sessions: SessionRow[],
+  rounds: Pick<RoundRow, "id" | "carts">[],
+): Map<string, string> {
+  const groups = new Map<string, SessionRow[]>();
+  for (const s of sessions) {
+    if (!s.round_id || s.status === "returned") continue;
+    groups.set(s.round_id, [...(groups.get(s.round_id) ?? []), s]);
+  }
+  const labels = new Map<string, string>();
+  for (const [roundId, group] of groups) {
+    const paid = rounds.find((r) => r.id === roundId)?.carts ?? 0;
+    const total = Math.max(group.length, paid);
+    if (total < 2) continue;
+    [...group]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .forEach((s, i) => labels.set(s.id, `cart ${i + 1} of ${total}`));
+  }
+  return labels;
+}
+
+/**
+ * True when a cart has been out (or held for a reservation) since before
+ * today, club time: left off the sheet overnight, or a no-show. The tile
+ * then shows the date and a red border so staff sort it out.
+ */
+export function sinceBeforeToday(
+  iso: string | null,
+  today: string,
+  timeZone: string,
+): boolean {
+  return iso !== null && clubDay(iso, timeZone) < today;
+}
+
+/** "4:23pm" today, "Wed 4:23pm" on an earlier day (club time). */
+export function boardClock(
+  iso: string | null,
+  today: string,
+  timeZone: string,
+): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  const time = formatTime(timeIn(timeZone, date));
+  if (!sinceBeforeToday(iso, today, timeZone)) return time;
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+  }).format(date);
+  return `${day} ${time}`;
+}
+
+/**
+ * What each row on the board looks like right now, keyed by session or
+ * order id. After a tap the row's buttons stay locked until this changes
+ * (the refreshed data shows the new status), so a fast second tap can't
+ * land on the next step's button.
+ */
+export function rowSignatures(
+  sessions: SessionRow[],
+  orders: Pick<OrderRow, "id" | "status">[],
+): Map<string, string> {
+  const sigs = new Map<string, string>();
+  for (const s of sessions) sigs.set(s.id, `${s.status}:${s.cart_id ?? ""}`);
+  for (const o of orders) sigs.set(o.id, o.status);
+  return sigs;
 }
 
 /** Carts that can be handed out right now. */
@@ -123,12 +245,35 @@ export function orderQueue(orders: OrderRow[]): OrderRow[] {
   return [...orders].sort((a, b) => a.created_at.localeCompare(b.created_at));
 }
 
-/** "just now", "4 min", "1 hr 5 min" since `iso`. */
-export function waitingFor(iso: string, now: Date = new Date()): string {
-  const minutes = Math.max(
+/** Whole minutes since `iso`. */
+export function minutesSince(iso: string, now: Date = new Date()): number {
+  return Math.max(
     0,
     Math.floor((now.getTime() - new Date(iso).getTime()) / 60_000),
   );
+}
+
+/** An order waiting longer than this shows its wait time in red. */
+export const LATE_ORDER_MINUTES = 10;
+
+/** A New order nobody has started for this long chimes again. */
+export const NAG_NEW_ORDER_MINUTES = 2;
+
+/** True while any order is still New after NAG_NEW_ORDER_MINUTES. */
+export function hasStaleNewOrder(
+  orders: Pick<OrderRow, "status" | "created_at">[],
+  now: Date = new Date(),
+): boolean {
+  return orders.some(
+    (o) =>
+      o.status === "new" &&
+      minutesSince(o.created_at, now) >= NAG_NEW_ORDER_MINUTES,
+  );
+}
+
+/** "just now", "4 min", "1 hr 5 min" since `iso`. */
+export function waitingFor(iso: string, now: Date = new Date()): string {
+  const minutes = minutesSince(iso, now);
   if (minutes < 1) return "just now";
   if (minutes < 60) return `${minutes} min`;
   return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
