@@ -26,7 +26,9 @@ export type Settings = {
     built: number;
     established: number;
   };
-  /** Index 0 = Sunday ... 6 = Saturday, matching Date.getDay(). */
+  /** IANA time zone the hours below are written in. */
+  timeZone: string;
+  /** Index 0 = Sunday ... 6 = Saturday, in the club's time zone. */
   clubhouseHours: DayHours[];
   greenFees: {
     weekday: Record<Holes, number>;
@@ -53,6 +55,7 @@ const settings: Settings = {
     built: 1923,
     established: 1925,
   },
+  timeZone: "America/Chicago",
   clubhouseHours: [
     { open: "11:00", close: "19:00" }, // Sun
     null, // Mon

@@ -1,19 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { navItems } from "@/lib/nav";
 
-export function SiteHeader({ clubName }: { clubName: string }) {
+export function SiteHeader({
+  clubName,
+  badge,
+}: {
+  clubName: string;
+  badge?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
   return (
     <header className="sticky top-0 z-20 border-b border-black/10 bg-green-900 text-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" onClick={close} className="text-lg font-semibold">
-          {clubName}
-        </Link>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <Link href="/" onClick={close} className="text-lg font-semibold">
+            {clubName}
+          </Link>
+          {badge}
+        </div>
 
         <nav aria-label="Main" className="hidden lg:block">
           <ul className="flex gap-5 text-sm">
