@@ -70,6 +70,16 @@ async function payWithCard(p) {
   await p.getByRole("button", { name: /^Pay \$/ }).click();
 }
 
+/**
+ * Open a page and let it finish laying out. Not "networkidle": the
+ * production build keeps background prefetches open, so the network never
+ * goes quiet there.
+ */
+async function settle(page, url) {
+  await page.goto(url, { waitUntil: "load" });
+  await page.waitForTimeout(1500);
+}
+
 /** Pages that scroll sideways on this screen (a classic phone-layout bug). */
 async function overflow(page) {
   return page.evaluate(
@@ -288,7 +298,7 @@ async function overflow(page) {
       "/order?hole=5",
     ];
     for (const path of publicPages) {
-      await phone.goto(`${base}${path}`, { waitUntil: "networkidle" });
+      await settle(phone, `${base}${path}`);
       const extra = await overflow(phone);
       if (extra > 0)
         problems.push(`phone ${path}: scrolls sideways by ${extra}px`);
@@ -309,7 +319,7 @@ async function overflow(page) {
     ]) {
       await tablet.setViewportSize(size);
       for (const path of staffPages) {
-        await tablet.goto(`${base}${path}`, { waitUntil: "networkidle" });
+        await settle(tablet, `${base}${path}`);
         const extra = await overflow(tablet);
         if (extra > 0)
           problems.push(

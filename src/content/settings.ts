@@ -89,7 +89,7 @@ export const defaultSettings: Settings = {
     yards: 5990,
     tees: ["White", "Blue"],
     built: 1923,
-    established: 1925,
+    established: 1923, // logo and printed menu; "Est. 1925" on the old site is an open club question
   },
   timeZone: "America/Chicago",
   clubhouseHours: [
