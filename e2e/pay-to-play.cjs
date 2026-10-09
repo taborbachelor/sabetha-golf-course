@@ -332,6 +332,38 @@ async function waitForReceiptOrAlert(p) {
       "stored with the Any time label",
     );
 
+    // --- A checkout left pending past the hold window (server died
+    // mid-payment): the receipt must not claim the card wasn't charged.
+    const staleId = require("crypto").randomUUID();
+    const staleCode = `R-Q${RUN.slice(-3).toUpperCase()}`;
+    await db.from("rounds").insert({
+      id: staleId,
+      play_date: future,
+      holes: 9,
+      players: 1,
+      carts: 0,
+      name: `${NAME} Stale`,
+      phone: "7855550100",
+      email: "",
+      amount_cents: 2000,
+      status: "pending",
+      code: staleCode,
+      created_at: new Date(Date.now() - 15 * 60_000).toISOString(),
+    });
+    await p.goto(`${base}/pay/receipt/${staleId}`, {
+      waitUntil: "networkidle",
+    });
+    const stale = await p.locator("main").innerText();
+    check(
+      stale.includes("If your card shows a charge, you're paid") &&
+        stale.includes(staleCode) &&
+        !/not charged|weren't charged/i.test(stale) &&
+        (await p.locator('main a[href^="tel:"]').count()) === 1 &&
+        (await p.locator('main a[href="/pay"]').innerText()) === "Pay again",
+      "unfinished payment receipt: honest copy, code, tap-to-call, Pay again",
+    );
+    await p.screenshot({ path: `${shotDir}/pay-to-play-stale.png` });
+
     console.log("page errors:", errs.length ? errs : "none");
     if (errs.length) throw new Error("page errors");
   } finally {

@@ -9,6 +9,7 @@ import {
   afterChargeFailure,
   chargeRequestFor,
   isAbandoned,
+  unpaidReceiptState,
   PENDING_HOLD_MINUTES,
 } from "./checkout";
 
@@ -91,6 +92,26 @@ describe("isAbandoned (pending hold cutoff)", () => {
         false,
       );
     }
+  });
+});
+
+describe("unpaidReceiptState", () => {
+  const created = "2026-10-07T19:00:00Z";
+  const at = (min: number) =>
+    new Date(new Date(created).getTime() + min * 60_000);
+
+  it("never claims 'not charged' for a pending round past the hold window", () => {
+    const pending = { status: "pending", created_at: created };
+    expect(unpaidReceiptState(pending, at(2))).toBe("confirming");
+    expect(unpaidReceiptState(pending, at(PENDING_HOLD_MINUTES + 1))).toBe(
+      "unfinished",
+    );
+  });
+
+  it("says not charged only for definite failures", () => {
+    expect(
+      unpaidReceiptState({ status: "cancelled", created_at: created }, at(1)),
+    ).toBe("failed");
   });
 });
 

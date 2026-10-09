@@ -5,7 +5,8 @@ import QRCode from "qrcode";
 import { Suspense } from "react";
 import { formatPrice } from "@/content/menu";
 import { isUuid } from "@/lib/codes";
-import { isAbandoned } from "@/lib/rounds/checkout";
+import { unpaidReceiptState } from "@/lib/rounds/checkout";
+import { getSettings } from "@/lib/settings";
 import { siteUrl } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -58,25 +59,51 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
   if (!data) notFound();
 
   if (data.status !== "paid") {
-    // A checkout still pending after the hold window never finished; its
-    // carts are already back in online inventory.
-    const stale =
-      data.status === "pending" && !data.payment_id && isAbandoned(data);
+    const state = unpaidReceiptState(data);
+    if (state === "unfinished") {
+      // Pending past the hold window: its carts are back in online inventory,
+      // but the server may have died after Square charged, so don't claim
+      // either way. The golfer's card statement is the tiebreaker.
+      const { club } = await getSettings();
+      return (
+        <div>
+          <h1 className="text-2xl font-bold">Payment didn&apos;t finish</h1>
+          <p className="mt-3">This payment didn&apos;t finish on our side.</p>
+          <p className="mt-3">
+            <strong>If your card shows a charge, you&apos;re paid</strong>: show
+            code <strong className="tracking-wide">{data.code}</strong> at the
+            clubhouse, or call{" "}
+            <a
+              href={`tel:${club.phone.replace(/\D/g, "")}`}
+              className="font-medium whitespace-nowrap text-green-800 underline"
+            >
+              {club.phone}
+            </a>
+            .
+          </p>
+          <p className="mt-3">If not, please pay again.</p>
+          <Link
+            href="/pay"
+            className="mt-6 block w-full rounded-xl bg-green-800 px-5 py-4 text-center text-lg font-bold text-white hover:bg-green-900"
+          >
+            Pay again
+          </Link>
+        </div>
+      );
+    }
     return (
       <div>
         <h1 className="text-2xl font-bold">Payment not completed</h1>
         <p className="mt-3">
-          {stale
-            ? "This payment didn't finish. You were not charged — please pay again."
-            : data.status === "pending"
-              ? "We're still confirming this payment. Refresh in a moment."
-              : "This payment didn't go through, so you weren't charged."}
+          {state === "confirming"
+            ? "We're still confirming this payment. Refresh in a moment."
+            : "This payment didn't go through, so you weren't charged."}
         </p>
         <Link
           href="/pay"
           className="mt-6 inline-block font-medium text-green-800 underline"
         >
-          {stale ? "Pay again" : "Back to Pay to Play"}
+          Back to Pay to Play
         </Link>
       </div>
     );
