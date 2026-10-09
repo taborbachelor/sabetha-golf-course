@@ -438,7 +438,8 @@ function PayFormFields({
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* Two columns on a phone; stacks only when large text makes the steppers too wide. */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-4">
           <Field label="Players" field="players" group>
             <Stepper
               value={players}
