@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HoursList } from "@/components/HoursList";
+import { mapQuery, mapsDirectionsUrl, telHref } from "@/lib/contact";
 import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
@@ -10,15 +11,13 @@ export const metadata: Metadata = {
 
 export default async function ContactPage() {
   const { club, clubhouseHours } = await getSettings();
-  const fullAddress = `${club.streetAddress}, ${club.city}, ${club.state} ${club.postalCode}`;
-  const mapQuery = encodeURIComponent(`${club.name}, ${fullAddress}`);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
       <h1 className="text-3xl font-bold">Contact</h1>
 
       <div className="mt-6 grid gap-8 md:grid-cols-2">
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8">
           <section aria-labelledby="visit-heading">
             <h2 id="visit-heading" className="text-xl font-bold">
               Visit
@@ -33,7 +32,7 @@ export default async function ContactPage() {
             <p className="mt-1 text-stone-600">{club.locationNote}.</p>
             <p className="mt-2">
               <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${mapQuery}`}
+                href={mapsDirectionsUrl(club)}
                 className="font-medium text-green-800 underline"
               >
                 Get directions
@@ -50,7 +49,7 @@ export default async function ContactPage() {
                 <dt className="text-sm text-stone-600">Phone</dt>
                 <dd>
                   <a
-                    href={`tel:${club.phone.replace(/\D/g, "")}`}
+                    href={telHref(club.phone)}
                     className="font-medium text-green-800 underline"
                   >
                     {club.phone}
@@ -62,7 +61,7 @@ export default async function ContactPage() {
                 <dd>
                   <a
                     href={`mailto:${club.email}`}
-                    className="font-medium text-green-800 underline"
+                    className="font-medium break-all text-green-800 underline"
                   >
                     {club.email}
                   </a>
@@ -110,7 +109,7 @@ export default async function ContactPage() {
         <div className="aspect-square w-full overflow-hidden rounded-lg bg-stone-200 md:aspect-auto md:min-h-96">
           <iframe
             title={`Map to ${club.name}`}
-            src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
+            src={`https://www.google.com/maps?q=${mapQuery(club)}&output=embed`}
             className="h-full w-full border-0"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"

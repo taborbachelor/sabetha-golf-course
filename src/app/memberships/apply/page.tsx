@@ -20,7 +20,7 @@ export default async function ApplyPage() {
       <h1 className="text-3xl font-bold">Apply for Membership</h1>
       <p className="mt-2 text-stone-600">
         Send your application to the Club Secretary. They&apos;ll review it and
-        contact you with current rates and how to pay dues.
+        contact you about next steps and how to pay dues.
       </p>
       <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
         Demo: membership types are samples until the club confirms its real
@@ -33,7 +33,10 @@ export default async function ApplyPage() {
       </div>
       <p className="mt-6 text-sm text-stone-600">
         Prefer email? Write to{" "}
-        <a href={`mailto:${club.email}`} className="text-green-800 underline">
+        <a
+          href={`mailto:${club.email}`}
+          className="break-all text-green-800 underline"
+        >
           {club.email}
         </a>
         .{" "}

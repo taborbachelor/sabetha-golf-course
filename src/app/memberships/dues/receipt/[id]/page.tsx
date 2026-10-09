@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { formatPrice } from "@/content/menu";
 import { installmentLabels } from "@/content/memberships";
 import { getSettings } from "@/lib/settings";
 import { isUuid } from "@/lib/codes";
-import type { Installment } from "@/lib/memberships/dues";
+import {
+  duesReceiptCode,
+  duesSeason,
+  type Installment,
+} from "@/lib/memberships/dues";
+import { formatDollars } from "@/lib/money";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -48,19 +52,24 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
     .maybeSingle<DuesPayment>();
   if (!data) notFound();
 
-  const paidOn = new Date(data.created_at).toLocaleDateString("en-US", {
+  const { timeZone } = await getSettings();
+  const paidAt = new Date(data.created_at);
+  const season = duesSeason(paidAt, timeZone);
+  const paidOn = paidAt.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
-    timeZone: (await getSettings()).timeZone,
+    timeZone,
   });
   const rows = [
+    ["Receipt", duesReceiptCode(id)],
     ["Member", data.member_name],
     ["Email", data.email],
     ["Membership", data.membership_tiers?.name ?? "—"],
+    ["Season", `${season} season`],
     ["Payment", installmentLabels[data.installment].label],
     ["Date", paidOn],
-    ["Paid", formatPrice(data.amount_cents)],
+    ["Paid", formatDollars(data.amount_cents)],
   ];
 
   return (
@@ -75,6 +84,10 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
         Dues paid. Thank you!
       </p>
       <h1 className="mt-3 text-3xl font-bold">Dues receipt</h1>
+      <p className="mt-2">
+        Nothing is emailed. Keep this page or take a screenshot for your
+        records.
+      </p>
       <dl className="mt-6 divide-y divide-stone-200 rounded-xl border border-stone-200 bg-white">
         {rows.map(([label, value]) => (
           <div key={label} className="flex justify-between gap-4 px-4 py-2.5">
@@ -85,13 +98,9 @@ async function Receipt({ params }: { params: Promise<{ id: string }> }) {
       </dl>
       {data.installment === "first" && (
         <p className="mt-4 rounded-lg bg-stone-100 px-4 py-3">
-          The second half is due by June 1.
+          The second half is due by June 1, {season}.
         </p>
       )}
-      <p className="mt-4 text-sm text-stone-600">
-        Nothing is emailed. Keep this page or take a screenshot for your
-        records.
-      </p>
       <Link
         href="/memberships"
         className="mt-6 inline-block font-medium text-green-800 underline"

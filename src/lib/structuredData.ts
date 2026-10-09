@@ -21,7 +21,10 @@ export function golfCourseJsonLd(settings: Settings, url: string) {
     url,
     telephone: club.phone,
     email: club.email,
-    foundingDate: String(settings.course.established),
+    // The club's logo and printed menu say "Est. 1923" (the course was
+    // dedicated in 1923); the old site's "1925" is an open question for the
+    // club (docs/CONTENT_AUDIT.md). Until it's answered, show 1923 everywhere.
+    foundingDate: String(settings.course.built),
     address: {
       "@type": "PostalAddress",
       streetAddress: club.streetAddress,

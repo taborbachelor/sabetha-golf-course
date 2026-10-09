@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { tournamentYear, tournaments } from "@/content/events";
+import { todayIn } from "@/lib/dates";
+import { seasonComplete } from "@/lib/seasons";
 import { getSettings } from "@/lib/settings";
 
 export const metadata: Metadata = {
@@ -8,8 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function EventsPage() {
-  const { club } = await getSettings();
-  const months = [...new Set(tournaments.map((t) => t.month))];
+  const { club, timeZone } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
@@ -27,6 +30,36 @@ export default async function EventsPage() {
         .
       </p>
 
+      {/* The static page shows the plain schedule; today's date (past
+          events greyed, "season complete") streams in per request. */}
+      <Suspense fallback={<Schedule today={null} />}>
+        <DatedSchedule timeZone={timeZone} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function DatedSchedule({ timeZone }: { timeZone: string }) {
+  await connection();
+  return <Schedule today={todayIn(timeZone)} />;
+}
+
+function Schedule({ today }: { today: string | null }) {
+  const months = [...new Set(tournaments.map((t) => t.month))];
+  const done = today !== null && seasonComplete(tournaments, today);
+
+  return (
+    <>
+      {done && (
+        <p className="mt-6 rounded-lg border border-green-800/20 bg-green-50 p-4">
+          <span className="font-semibold">
+            The {tournamentYear} season is complete.
+          </span>{" "}
+          Thanks to everyone who played! The {tournamentYear + 1} schedule will
+          be posted here and on Facebook.
+        </p>
+      )}
+
       {months.map((month) => (
         <section
           key={month}
@@ -42,34 +75,38 @@ export default async function EventsPage() {
           <ul className="mt-3 divide-y divide-stone-200">
             {tournaments
               .filter((t) => t.month === month)
-              .map((t) => (
-                <li
-                  key={`${t.date}-${t.name}`}
-                  className="grid gap-1 py-3 sm:grid-cols-[9rem_1fr]"
-                >
-                  <p className="font-semibold">
-                    {t.date}
-                    {t.time && (
-                      <span className="font-normal text-stone-600">
-                        {" "}
-                        · {t.time}
-                      </span>
-                    )}
-                  </p>
-                  <div>
-                    <p className="font-medium">{t.name}</p>
-                    {(t.format || t.fee) && (
-                      <p className="text-sm text-stone-600">
-                        {[t.format, t.fee].filter(Boolean).join(" · ")}
-                      </p>
-                    )}
-                    {t.note && <p className="mt-1 text-sm">{t.note}</p>}
-                  </div>
-                </li>
-              ))}
+              .map((t) => {
+                const past = today !== null && t.lastDay < today;
+                return (
+                  <li
+                    key={`${t.date}-${t.name}`}
+                    className={`grid gap-1 py-3 sm:grid-cols-[9rem_1fr] ${past ? "text-stone-500" : ""}`}
+                  >
+                    <p className="font-semibold">
+                      {t.date}
+                      {t.time && (
+                        <span className="font-normal text-stone-600">
+                          {" "}
+                          · {t.time}
+                        </span>
+                      )}
+                      {past && <span className="sr-only"> (past)</span>}
+                    </p>
+                    <div className="min-w-0">
+                      <p className="font-medium">{t.name}</p>
+                      {(t.format || t.fee) && (
+                        <p className="text-sm text-stone-600">
+                          {[t.format, t.fee].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                      {t.note && <p className="mt-1 text-sm">{t.note}</p>}
+                    </div>
+                  </li>
+                );
+              })}
           </ul>
         </section>
       ))}
-    </div>
+    </>
   );
 }

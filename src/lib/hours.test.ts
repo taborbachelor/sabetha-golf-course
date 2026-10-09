@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultSettings } from "@/content/settings";
 import {
   clubClock,
+  clubhouseStatus,
   formatTime,
   isOpenNow,
   nextOpening,
@@ -111,5 +112,67 @@ describe("nextOpening", () => {
       clubhouseHours: settings.clubhouseHours.map(() => null),
     };
     expect(nextOpening(never, new Date("2026-10-07T15:00:00Z"))).toBeNull();
+  });
+});
+
+describe("clubhouseStatus", () => {
+  const status = (iso: string) => clubhouseStatus(settings, new Date(iso));
+
+  it("says when it closes while open", () => {
+    expect(status("2026-10-07T23:00:00Z")).toEqual({
+      open: true,
+      text: "Open until 8pm",
+    }); // Wed 18:00
+    expect(status("2026-10-11T17:00:00Z").text).toBe("Open until 7pm"); // Sun 12:00
+  });
+
+  it("says when it opens later today", () => {
+    expect(status("2026-10-07T15:00:00Z")).toEqual({
+      open: false,
+      text: "Opens 4:30pm",
+    }); // Wed 10:00
+    expect(status("2026-10-10T13:00:00Z").text).toBe("Opens 11am"); // Sat 08:00
+  });
+
+  it("says tomorrow, or names the day further out", () => {
+    expect(status("2026-10-08T01:00:00Z").text).toBe("Opens tomorrow 4:30pm"); // Wed 20:00
+    expect(status("2026-10-11T01:30:00Z").text).toBe("Opens tomorrow 11am"); // Sat 20:30
+    expect(status("2026-10-05T17:00:00Z").text).toBe("Opens Wed 4:30pm"); // Mon
+    expect(status("2026-10-12T00:00:00Z").text).toBe("Opens Wed 4:30pm"); // Sun 19:00
+  });
+
+  it("agrees with nextOpening on the opening time", () => {
+    for (const iso of [
+      "2026-10-05T17:00:00Z",
+      "2026-10-07T15:00:00Z",
+      "2026-10-08T01:00:00Z",
+      "2026-10-12T00:00:00Z",
+    ]) {
+      const time = nextOpening(settings, new Date(iso))!.split(" at ")[1];
+      expect(status(iso).text.endsWith(time), iso).toBe(true);
+    }
+  });
+
+  it("wraps to the same weekday next week", () => {
+    const wedOnly = {
+      ...settings,
+      clubhouseHours: settings.clubhouseHours.map((h, day) =>
+        day === 3 ? h : null,
+      ),
+    };
+    expect(
+      clubhouseStatus(wedOnly, new Date("2026-10-08T02:00:00Z")).text,
+    ).toBe("Opens Wed 4:30pm"); // Wed 21:00
+  });
+
+  it("says Closed when no day has hours", () => {
+    const never = {
+      ...settings,
+      clubhouseHours: settings.clubhouseHours.map(() => null),
+    };
+    expect(clubhouseStatus(never, new Date("2026-10-07T23:00:00Z"))).toEqual({
+      open: false,
+      text: "Closed",
+    });
   });
 });

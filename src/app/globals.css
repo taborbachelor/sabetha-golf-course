@@ -16,6 +16,14 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  /* Large phone text (200%): wrap a word that can't fit instead of
+     scrolling the page sideways. */
+  overflow-wrap: break-word;
+}
+
+h1,
+h2 {
+  hyphens: auto;
 }
 
 @layer components {

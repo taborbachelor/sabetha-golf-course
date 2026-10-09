@@ -56,6 +56,30 @@ export function nextOpening(
   settings: HoursSettings,
   date: Date,
 ): string | null {
+  const next = nextOpeningSlot(settings, date);
+  if (!next) return null;
+  const { ahead, weekday, open } = next;
+  const when =
+    ahead === 0
+      ? "today"
+      : ahead === 1
+        ? "tomorrow"
+        : ahead === 7
+          ? `next ${FULL_WEEKDAYS[weekday]}`
+          : FULL_WEEKDAYS[weekday];
+  return `${when} at ${formatTime(open)}`;
+}
+
+/**
+ * The next time the clubhouse opens after `date`: how many days ahead (0 =
+ * later today, 7 = same weekday next week), which weekday, and the "HH:MM"
+ * opening time. Null if it's open right now or has no hours at all. Shared
+ * by nextOpening() and clubhouseStatus() so they always agree.
+ */
+export function nextOpeningSlot(
+  settings: HoursSettings,
+  date: Date,
+): { ahead: number; weekday: number; open: string } | null {
   const { day, minutes } = clubClock(date, settings.timeZone);
   for (let ahead = 0; ahead <= 7; ahead++) {
     const weekday = (day + ahead) % 7;
@@ -66,15 +90,7 @@ export function nextOpening(
         return null; // Open now.
       if (minutes >= toMinutes(hours.open)) continue; // Already closed today.
     }
-    const when =
-      ahead === 0
-        ? "today"
-        : ahead === 1
-          ? "tomorrow"
-          : ahead === 7
-            ? `next ${FULL_WEEKDAYS[weekday]}`
-            : FULL_WEEKDAYS[weekday];
-    return `${when} at ${formatTime(hours.open)}`;
+    return { ahead, weekday, open: hours.open };
   }
   return null;
 }
@@ -117,4 +133,32 @@ export function weeklyHours(
       first === last ? WEEKDAYS[first] : `${WEEKDAYS[first]}–${WEEKDAYS[last]}`,
     hours,
   }));
+}
+
+export type ClubhouseStatus = { open: boolean; text: string };
+
+/**
+ * Short open/closed line for the header badge, at `date` in the club's time
+ * zone: "Open until 8pm", or when it next opens, in nextOpening()'s terms but
+ * short: "Opens 4:30pm" (today), "Opens tomorrow 11am", "Opens Wed 4:30pm".
+ * "Closed" only if no day of the week has hours.
+ */
+export function clubhouseStatus(
+  settings: HoursSettings,
+  date: Date,
+): ClubhouseStatus {
+  const { day } = clubClock(date, settings.timeZone);
+  if (isOpenNow(settings, date)) {
+    const close = settings.clubhouseHours[day]!.close;
+    return { open: true, text: `Open until ${formatTime(close)}` };
+  }
+  const next = nextOpeningSlot(settings, date);
+  if (!next) return { open: false, text: "Closed" };
+  const when =
+    next.ahead === 0
+      ? ""
+      : next.ahead === 1
+        ? "tomorrow "
+        : `${WEEKDAYS[next.weekday]} `;
+  return { open: false, text: `Opens ${when}${formatTime(next.open)}` };
 }

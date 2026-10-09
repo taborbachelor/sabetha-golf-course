@@ -25,7 +25,7 @@ export default async function GiftCardsPage() {
       </p>
       <p className="mt-3 text-sm text-stone-600">
         Opens Square&apos;s secure checkout. Questions? Email{" "}
-        <a href={`mailto:${club.email}`} className="underline">
+        <a href={`mailto:${club.email}`} className="break-all underline">
           {club.email}
         </a>
         .

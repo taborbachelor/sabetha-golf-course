@@ -71,6 +71,21 @@ const EMAIL = `member-${Date.now()}@example.com`;
     await f.locator("#cvv").fill("111");
     if (await f.locator("#postalCode").count())
       await f.locator("#postalCode").fill("66534");
+
+    // Editing the form after Continue keeps the typed card; Pay re-checks the form.
+    await p.getByLabel("Email").fill("");
+    await p.getByRole("button", { name: /^Pay \$/ }).click();
+    await p.getByText("Enter a valid email").waitFor();
+    console.log(
+      "2b edit after Continue: card kept:",
+      (await f.locator("#cardNumber").inputValue()).replace(/\D/g, "") ===
+        "4111111111111111",
+      "| still on form:",
+      /\/memberships\/dues$/.test(p.url()),
+      "| email focused:",
+      await p.evaluate(() => document.activeElement?.type),
+    );
+    await p.getByLabel("Email").fill(EMAIL);
     await p.getByRole("button", { name: /^Pay \$/ }).click();
     await p.waitForURL(/\/memberships\/dues\/receipt\//, { timeout: 90000 });
     await p.getByRole("heading", { name: "Dues receipt" }).waitFor();

@@ -19,11 +19,16 @@ export const sampleTiers: SampleTier[] = [
 export const cartShed =
   "Members can rent a Cart Shed to store their own cart at the course.";
 
-export const howToJoin = [
-  "Apply online, or send an inquiry to the Club Secretary by email or mail.",
-  "Include your full name, address, phone, email, the membership type you want, and whether you'd like to rent a Cart Shed.",
-  "The Secretary will review it and reply with current rates.",
-];
+/** How to join, short: the online form is the main way in. */
+export const howToJoin = {
+  details:
+    "your full name, mailing address, phone, email, the membership type you want, and whether you'd like to rent a Cart Shed",
+  /** Last line when prices are shown on the page. */
+  reply: "The Secretary reviews every application and will be in touch.",
+  /** Last line when some types have no price yet. */
+  replyWithRates:
+    "The Secretary reviews every application and replies with current rates.",
+};
 
 export const duesSchedule = [
   "Annual dues statements are mailed at the end of January.",

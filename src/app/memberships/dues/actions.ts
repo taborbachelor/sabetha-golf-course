@@ -3,11 +3,14 @@
 import { formatPrice } from "@/content/menu";
 import { isUuid } from "@/lib/codes";
 import {
+  afterDuesChargeFailure,
   duesAmount,
   duesFormSchema,
   type DuesForm,
 } from "@/lib/memberships/dues";
 import { getPayments } from "@/lib/payments";
+import type { ChargeResult } from "@/lib/payments/types";
+import { DROPPED_MESSAGE } from "@/lib/rounds/checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type DuesResult =
@@ -16,7 +19,10 @@ export type DuesResult =
       ok: false;
       message: string;
       field?: keyof DuesForm;
-      /** The card was charged but saving failed: retry with the same checkout ID. */
+      /**
+       * The card may have been charged (dropped connection, or charged but
+       * not saved): retry with the same checkout ID, token and form values.
+       */
       retrySame?: boolean;
     };
 
@@ -57,8 +63,10 @@ export async function payDues(
     .select("id")
     .eq("id", checkoutId)
     .maybeSingle();
-  if (existing.error)
-    return fail("Couldn't reach the server. Please try again.");
+  // An earlier try of this checkout may have charged: keep it for a retry
+  // (replaying the same checkout is always safe).
+  const retry = () => fail(DROPPED_MESSAGE, { retrySame: true });
+  if (existing.error) return retry();
   if (existing.data) return { ok: true, receiptId: checkoutId };
 
   const tier = await db
@@ -66,7 +74,7 @@ export async function payDues(
     .select("name, price_cents")
     .eq("id", form.tierId)
     .maybeSingle();
-  if (tier.error) return fail("Couldn't reach the server. Please try again.");
+  if (tier.error) return retry();
   if (!tier.data) return fail("Pick your membership type", { field: "tierId" });
 
   const amountCents = duesAmount(tier.data.price_cents, form.installment);
@@ -77,17 +85,27 @@ export async function payDues(
     );
   }
 
-  const charge = await getPayments().charge({
-    sourceToken,
-    amountCents,
-    idempotencyKey: checkoutId,
-    referenceId: checkoutId,
-    note: `Dues ${installmentNote[form.installment]}: ${tier.data.name}, ${form.name} (${form.email}), ${formatPrice(amountCents)}`.slice(
-      0,
-      500,
-    ),
-  });
-  if (!charge.ok) return fail(charge.message);
+  // A retry sends exactly the same request (same form values, token and
+  // key), so Square replays the earlier charge instead of rejecting it.
+  let charge: ChargeResult;
+  try {
+    charge = await getPayments().charge({
+      sourceToken,
+      amountCents,
+      idempotencyKey: checkoutId,
+      referenceId: checkoutId,
+      note: `Dues ${installmentNote[form.installment]}: ${tier.data.name}, ${form.name} (${form.email}), ${formatPrice(amountCents)}`.slice(
+        0,
+        500,
+      ),
+    });
+  } catch {
+    return retry();
+  }
+  if (!charge.ok) {
+    const { message, retrySame } = afterDuesChargeFailure(charge);
+    return fail(message, { retrySame });
+  }
 
   const { error } = await db.from("dues_payments").insert({
     id: checkoutId,

@@ -47,8 +47,9 @@ async function ReceivedView({ params }: { params: Promise<{ id: string }> }) {
         <h1 className="text-3xl font-bold">Application received</h1>
         <p className="mt-2">
           Thanks, {app.name}. The Club Secretary will review your application
-          and contact you at <span className="font-medium">{app.email}</span>{" "}
-          with current rates and next steps.
+          and contact you at{" "}
+          <span className="font-medium break-all">{app.email}</span> about next
+          steps.
         </p>
       </div>
       <dl className="divide-y divide-stone-200 rounded-lg border border-stone-200 bg-white">

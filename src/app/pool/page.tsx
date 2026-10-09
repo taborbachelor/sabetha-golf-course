@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { PhotoGrid } from "@/components/PhotoGrid";
 import { poolPhotos } from "@/content/photos";
 import { poolFacilities, poolRules, poolSeason } from "@/content/pool";
 import { getSettings } from "@/lib/settings";
+import { todayIn } from "@/lib/dates";
 import { formatTime } from "@/lib/hours";
+import { longDate, poolSeason as seasonOn } from "@/lib/seasons";
 
 export const metadata: Metadata = {
   title: "Pool",
@@ -13,14 +17,22 @@ export const metadata: Metadata = {
 };
 
 export default async function PoolPage() {
-  const { pool } = await getSettings();
+  const { pool, timeZone } = await getSettings();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
       <h1 className="text-3xl font-bold">Pool</h1>
-      <p className="mt-3">{poolSeason}</p>
+      {/* The static page shows the general season; whether it's open today
+          streams in per request. */}
+      <Suspense fallback={<p className="mt-3">{poolSeason}</p>}>
+        <SeasonNotice timeZone={timeZone} />
+      </Suspense>
 
-      <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-lg bg-stone-100 p-4">
+          <dt className="text-sm text-stone-600">Season</dt>
+          <dd className="font-semibold">Memorial Day weekend to Labor Day</dd>
+        </div>
         <div className="rounded-lg bg-stone-100 p-4">
           <dt className="text-sm text-stone-600">Gates unlock</dt>
           <dd className="font-semibold">
@@ -69,5 +81,18 @@ export default async function PoolPage() {
         .
       </p>
     </div>
+  );
+}
+
+async function SeasonNotice({ timeZone }: { timeZone: string }) {
+  await connection();
+  const season = seasonOn(todayIn(timeZone));
+  if (season.inSeason) return <p className="mt-3">{poolSeason}</p>;
+
+  return (
+    <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
+      <span className="font-semibold">The pool is closed for the season.</span>{" "}
+      It reopens Memorial Day weekend, {longDate(season.opens)}.
+    </p>
   );
 }

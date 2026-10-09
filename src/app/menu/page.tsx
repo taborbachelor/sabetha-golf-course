@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { formatPrice, menuSections } from "@/content/menu";
 import { getPublicMenu } from "@/lib/menu";
 import { groupMenu, type MenuGroup } from "@/lib/menu/group";
@@ -21,13 +22,22 @@ export default async function MenuPage() {
       <p className="mt-3 text-stone-600">
         Prices may change. The kitchen may close for events.
       </p>
+      <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-green-800/20 bg-green-50 p-4">
+        <span className="font-medium">On the course?</span>
+        <Link
+          href="/order"
+          className="inline-block rounded-lg bg-green-800 px-4 py-2.5 font-semibold text-white hover:bg-green-900"
+        >
+          Order to your hole
+        </Link>
+      </p>
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
         {groups.map(({ category, items }) => {
           const note = menuSections.find((s) => s.name === category)?.note;
           const id = `menu-${category.replace(/\W+/g, "-")}`;
           return (
-            <section key={category} aria-labelledby={id}>
+            <section key={category} aria-labelledby={id} className="min-w-0">
               <h2
                 id={id}
                 className="border-b-2 border-green-800 pb-1 text-xl font-bold"
@@ -41,7 +51,7 @@ export default async function MenuPage() {
                     key={item.id}
                     className="flex items-baseline justify-between gap-3"
                   >
-                    <span>
+                    <span className="min-w-0 break-words">
                       {item.name}
                       {item.is_alcohol && (
                         <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">

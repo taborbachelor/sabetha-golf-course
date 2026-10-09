@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { heroPhoto } from "@/content/photos";
 import { HoursList } from "@/components/HoursList";
+import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { RatesTable } from "@/components/RatesTable";
 import { getSettings } from "@/lib/settings";
 
@@ -24,7 +25,7 @@ const ctas = [
 ];
 
 export default async function Home() {
-  const { club, course, clubhouseHours, greenFees, cartRental } =
+  const { club, course, clubhouseHours, greenFees, cartRental, timeZone } =
     await getSettings();
 
   return (
@@ -45,12 +46,20 @@ export default async function Home() {
         />
         <div className="mx-auto max-w-6xl px-4 py-8 sm:py-14">
           <p className="text-sm tracking-wide text-green-200 uppercase">
-            {club.city}, {club.state} · Est. {course.established}
+            {club.city}, {club.state} · Since {course.built}
           </p>
           <h1 className="mt-1 text-3xl font-bold sm:text-5xl">{club.name}</h1>
           <p className="mt-2 max-w-xl text-green-50">
             A {course.holes}-hole, {course.yards.toLocaleString("en-US")}-yard
             course built in {course.built}. {club.locationNote}.
+          </p>
+          <p className="mt-2 max-w-xl font-semibold">
+            Open to the public. No tee times — just show up, or pay ahead
+            online.
+          </p>
+          {/* The header shows this from sm up. */}
+          <p className="mt-3 sm:hidden">
+            <OpenNowBadge timeZone={timeZone} clubhouseHours={clubhouseHours} />
           </p>
 
           <ul className="mt-6 grid gap-3 sm:grid-cols-3">
