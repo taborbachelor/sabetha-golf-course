@@ -12,6 +12,8 @@ export type OrderingState = {
   ignoreHoursForDemo: boolean;
   /** True when orders are being taken right now. */
   accepting: boolean;
+  /** Why not: outside clubhouse hours, or staff switched ordering off. */
+  closedBecause: "hours" | "kitchen" | null;
   /** Why not, in words a golfer understands. */
   closedReason: string | null;
   /** Everything on the menu (for pricing). */
@@ -55,11 +57,17 @@ export async function getOrderingState(): Promise<OrderingState> {
   const clubhouseOpen = isOpenNow(settings, new Date());
   const menu = menuRows.data as MenuRow[];
 
-  const closedReason =
+  const closedBecause =
     !clubhouseOpen && !ignoreHoursForDemo
-      ? "The clubhouse is closed right now, so we can't take orders. Check the hours below."
+      ? "hours"
       : kitchen === "closed"
-        ? "Ordering to the course is closed right now. Stop by the clubhouse."
+        ? "kitchen"
+        : null;
+  const closedReason =
+    closedBecause === "hours"
+      ? "The clubhouse is closed right now, so we can't take orders."
+      : closedBecause === "kitchen"
+        ? "Ordering to the course is closed right now."
         : null;
 
   return {
@@ -67,6 +75,7 @@ export async function getOrderingState(): Promise<OrderingState> {
     clubhouseOpen,
     ignoreHoursForDemo,
     accepting: closedReason === null,
+    closedBecause,
     closedReason,
     menu,
     orderable: closedReason ? [] : orderableItems(menu, kitchen),

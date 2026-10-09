@@ -89,6 +89,46 @@ describe("priceOrder", () => {
     ).toBe(false);
   });
 
+  it("names food the kitchen can't make when it's drinks only", () => {
+    const r = priceOrder(
+      [
+        { id: burger.id, qty: 1 },
+        { id: water.id, qty: 1 },
+      ],
+      menu,
+      "drinks_only",
+    );
+    expect(r).toEqual({
+      ok: false,
+      message:
+        "Cheeseburger isn't available right now (kitchen closed). Remove it to continue.",
+      unavailable: [{ id: burger.id, name: "Cheeseburger" }],
+    });
+  });
+
+  it("names every unavailable item, hidden or unknown, without blaming the kitchen", () => {
+    const ghost = crypto.randomUUID();
+    const r = priceOrder(
+      [
+        { id: gone.id, qty: 1 },
+        { id: burger.id, qty: 1 },
+        { id: ghost, qty: 1 },
+      ],
+      menu,
+      "drinks_only",
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.message).toBe(
+      "Gone, Cheeseburger and An item aren't available right now. Remove them to continue.",
+    );
+    expect(r.unavailable?.map((u) => u.id)).toEqual([
+      gone.id,
+      burger.id,
+      ghost,
+    ]);
+  });
+
   it("allows up to 30 items in total", () => {
     const soda = row({ name: "Soda", is_food: false });
     const bigMenu = [...menu, soda];

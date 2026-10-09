@@ -3,25 +3,40 @@
 import { useEffect, useState } from "react";
 import { ORDER_STEPS, type OrderStatus } from "@/lib/orders/order";
 import { getOrderStatus } from "../../actions";
+import { CallClubhouse } from "../../CallClubhouse";
 
 const DONE: OrderStatus[] = ["delivered", "cancelled"];
+
+/** After this many failed polls in a row, say we're having trouble. */
+const FAILS_BEFORE_WARNING = 2;
 
 /** Live order progress. Polls every 5 seconds until delivered. */
 export function StatusTracker({
   orderId,
   initial,
+  phone,
 }: {
   orderId: string;
   initial: OrderStatus;
+  /** Clubhouse phone, from settings. */
+  phone: string;
 }) {
   const [status, setStatus] = useState(initial);
+  const [failedPolls, setFailedPolls] = useState(0);
+  const offline = failedPolls >= FAILS_BEFORE_WARNING;
 
   useEffect(() => {
     if (DONE.includes(status)) return;
     let stopped = false;
     const tick = async () => {
       const next = await getOrderStatus(orderId).catch(() => null);
-      if (!stopped && next) setStatus(next.status);
+      if (stopped) return;
+      if (next) {
+        setStatus(next.status);
+        setFailedPolls(0);
+      } else {
+        setFailedPolls((n) => n + 1);
+      }
     };
     const id = setInterval(tick, 5_000);
     const onVisible = () =>
@@ -36,22 +51,28 @@ export function StatusTracker({
 
   if (status === "cancelled") {
     return (
-      <p role="status" className="rounded-lg bg-stone-100 px-4 py-3">
-        This order was cancelled. You weren&apos;t charged, or the clubhouse
-        will refund you.
-      </p>
+      <div role="status" className="rounded-lg bg-stone-100 px-4 py-3">
+        <p className="font-medium">This order was cancelled.</p>
+        <p>
+          If you were charged, the clubhouse will refund you. Questions?{" "}
+          <CallClubhouse phone={phone} />
+        </p>
+      </div>
     );
   }
   if (status === "pending") {
     return (
-      <p role="status" className="rounded-lg bg-stone-100 px-4 py-3">
-        Confirming your payment…
-      </p>
+      <div className="space-y-3">
+        <p role="status" className="rounded-lg bg-stone-100 px-4 py-3">
+          Confirming your payment…
+        </p>
+        {offline && <OfflineNote />}
+      </div>
     );
   }
 
   const current = ORDER_STEPS.findIndex((s) => s.status === status);
-  return (
+  const steps = (
     <ol aria-label="Order progress" className="space-y-3">
       {ORDER_STEPS.map((step, i) => {
         const state =
@@ -82,13 +103,38 @@ export function StatusTracker({
               }
             >
               {step.label}
-              {state === "now" && step.status !== "delivered" && (
-                <span className="ml-2 inline-block size-2 animate-pulse rounded-full bg-green-600 align-middle" />
-              )}
+              {state === "now" &&
+                step.status !== "delivered" &&
+                (offline ? (
+                  <span className="ml-2 text-sm font-normal text-stone-500">
+                    Checking…
+                  </span>
+                ) : (
+                  <span className="ml-2 inline-block size-2 animate-pulse rounded-full bg-green-600 align-middle" />
+                ))}
             </span>
           </li>
         );
       })}
     </ol>
+  );
+  return (
+    <div className="space-y-3">
+      {steps}
+      {offline && <OfflineNote />}
+    </div>
+  );
+}
+
+/** Shown when polls keep failing, so a dead connection isn't hidden. */
+function OfflineNote() {
+  return (
+    <p
+      role="status"
+      className="rounded-lg bg-amber-50 px-4 py-3 text-amber-900"
+    >
+      Checking… we can&apos;t reach the clubhouse right now. This page will
+      catch up when your signal does.
+    </p>
   );
 }

@@ -59,9 +59,30 @@ export type OrderLine = {
   is_alcohol: boolean;
 };
 
+export type UnavailableItem = { id: string; name: string };
+
 export type PricedOrder =
   | { ok: true; lines: OrderLine[]; totalCents: number; hasAlcohol: boolean }
-  | { ok: false; message: string };
+  | { ok: false; message: string; unavailable?: UnavailableItem[] };
+
+/** "A", "A and B", "A, B and C". */
+function listNames(names: string[]): string {
+  return names.length < 2
+    ? (names[0] ?? "")
+    : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+/**
+ * "Hot Dog isn't available right now (kitchen closed). Remove it to continue."
+ */
+export function unavailableMessage(
+  items: UnavailableItem[],
+  kitchenClosed: boolean,
+): string {
+  const one = items.length === 1;
+  const reason = kitchenClosed ? " (kitchen closed)" : "";
+  return `${listNames(items.map((i) => i.name))} ${one ? "isn't" : "aren't"} available right now${reason}. Remove ${one ? "it" : "them"} to continue.`;
+}
 
 /**
  * Price an order from the database menu. Rejects items that don't exist or
@@ -84,16 +105,31 @@ export function priceOrder(
     return { ok: false, message: `Orders are limited to ${MAX_ITEMS} items.` };
   }
 
+  const missing = [...qtyById.keys()].filter((id) => !orderable.has(id));
+  if (missing.length) {
+    const byId = new Map(menu.map((m) => [m.id, m]));
+    const unavailable = missing.map((id) => ({
+      id,
+      name: byId.get(id)?.name ?? "An item",
+    }));
+    // Every missing item is food the kitchen can't make right now, as
+    // opposed to something staff hid or that no longer exists.
+    const kitchenClosed =
+      kitchen !== "open" &&
+      missing.every((id) => {
+        const m = byId.get(id);
+        return !!m && m.available && m.is_food;
+      });
+    return {
+      ok: false,
+      message: unavailableMessage(unavailable, kitchenClosed),
+      unavailable,
+    };
+  }
+
   const lines: OrderLine[] = [];
   for (const [id, qty] of qtyById) {
-    const item = orderable.get(id);
-    if (!item) {
-      return {
-        ok: false,
-        message:
-          "Something in your order isn't available right now. Please review it.",
-      };
-    }
+    const item = orderable.get(id)!;
     if (qty > MAX_QTY_PER_ITEM) {
       return { ok: false, message: `Up to ${MAX_QTY_PER_ITEM} of each item.` };
     }

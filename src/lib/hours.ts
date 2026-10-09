@@ -37,6 +37,48 @@ export function isOpenNow(settings: HoursSettings, date: Date): boolean {
   return minutes >= toMinutes(hours.open) && minutes < toMinutes(hours.close);
 }
 
+const FULL_WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+/**
+ * When the clubhouse next opens after `date`, in words: "today at 4:30pm",
+ * "tomorrow at 11am", "Wednesday at 4:30pm". Null if it's open right now or
+ * has no hours at all.
+ */
+export function nextOpening(
+  settings: HoursSettings,
+  date: Date,
+): string | null {
+  const { day, minutes } = clubClock(date, settings.timeZone);
+  for (let ahead = 0; ahead <= 7; ahead++) {
+    const weekday = (day + ahead) % 7;
+    const hours = settings.clubhouseHours[weekday];
+    if (!hours) continue;
+    if (ahead === 0) {
+      if (minutes >= toMinutes(hours.open) && minutes < toMinutes(hours.close))
+        return null; // Open now.
+      if (minutes >= toMinutes(hours.open)) continue; // Already closed today.
+    }
+    const when =
+      ahead === 0
+        ? "today"
+        : ahead === 1
+          ? "tomorrow"
+          : ahead === 7
+            ? `next ${FULL_WEEKDAYS[weekday]}`
+            : FULL_WEEKDAYS[weekday];
+    return `${when} at ${formatTime(hours.open)}`;
+  }
+  return null;
+}
+
 /** "16:30" -> "4:30pm", "11:00" -> "11am". */
 export function formatTime(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
