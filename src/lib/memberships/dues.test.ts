@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { DROPPED_MESSAGE } from "@/lib/rounds/checkout";
 import {
-  DUES_DROPPED_MESSAGE,
   afterDuesChargeFailure,
   duesAmount,
   duesFormSchema,
@@ -49,32 +49,41 @@ describe("duesFormSchema", () => {
 });
 
 describe("afterDuesChargeFailure", () => {
+  const failure = (over: {
+    retryable: boolean;
+    code: string;
+    message: string;
+  }) => ({ ok: false, declined: false, ...over }) as const;
+
   it("keeps the same checkout for a retry when the charge may have happened", () => {
     expect(
-      afterDuesChargeFailure({
-        retryable: true,
-        code: "NETWORK",
-        message: "fetch failed",
-      }),
-    ).toEqual({ message: DUES_DROPPED_MESSAGE, retrySame: true });
+      afterDuesChargeFailure(
+        failure({ retryable: true, code: "NETWORK", message: "fetch failed" }),
+      ),
+    ).toEqual({ message: DROPPED_MESSAGE, retrySame: true });
   });
 
   it("starts fresh after a definite failure", () => {
     expect(
       afterDuesChargeFailure({
-        retryable: false,
-        code: "CARD_DECLINED",
-        message: "Card declined",
+        ...failure({
+          retryable: false,
+          code: "CARD_DECLINED",
+          message: "Card declined",
+        }),
+        declined: true,
       }),
     ).toEqual({ message: "Card declined", retrySame: false });
   });
 
   it("warns instead of retrying when the checkout ID was already used", () => {
-    const r = afterDuesChargeFailure({
-      retryable: false,
-      code: "IDEMPOTENCY_KEY_REUSED",
-      message: "x",
-    });
+    const r = afterDuesChargeFailure(
+      failure({
+        retryable: false,
+        code: "IDEMPOTENCY_KEY_REUSED",
+        message: "x",
+      }),
+    );
     expect(r.retrySame).toBe(false);
     expect(r.message).toMatch(/may already have gone through/);
   });

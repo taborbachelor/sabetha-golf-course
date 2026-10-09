@@ -11,7 +11,6 @@ import {
 } from "@/components/SquareCard";
 import { errorId, errorsByField, focusFirstInvalid } from "@/lib/forms";
 import {
-  DUES_DROPPED_MESSAGE,
   INSTALLMENTS,
   duesAmount,
   duesFormSchema,
@@ -19,6 +18,7 @@ import {
   type Installment,
 } from "@/lib/memberships/dues";
 import { formatDollars } from "@/lib/money";
+import { DROPPED_MESSAGE } from "@/lib/rounds/checkout";
 import { payDues } from "./actions";
 
 export type DuesTier = {
@@ -157,7 +157,7 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
       // The request (or Square's card form) lost the connection. If the
       // attempt reached the server it may have charged, so keep it as is.
       setRetrying(!!attempt.current);
-      setPayError(DUES_DROPPED_MESSAGE);
+      setPayError(DROPPED_MESSAGE);
     } finally {
       if (!navigating) setPaying(false);
     }

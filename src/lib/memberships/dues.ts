@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { ChargeResult } from "@/lib/payments/types";
+import { DROPPED_MESSAGE, afterChargeFailure } from "@/lib/rounds/checkout";
 
 export const INSTALLMENTS = ["full", "first", "second"] as const;
 export type Installment = (typeof INSTALLMENTS)[number];
@@ -27,35 +29,31 @@ export const duesFormSchema = z.object({
 
 export type DuesForm = z.infer<typeof duesFormSchema>;
 
-/** Shown when a dues payment may or may not have gone through. */
-export const DUES_DROPPED_MESSAGE =
-  "Connection dropped. Tap Pay again — you won't be charged twice.";
-
 /**
- * What the dues form should do after a failed charge. When we can't tell if
- * Square took the money (network error, timeout, 5xx), the browser keeps the
- * SAME checkout ID and token and retries: Square replays the earlier result
- * or charges once now. Anything else (declined card, bad token) is final and
- * the next tap starts a fresh attempt.
+ * What the dues form should do after a failed charge, using the same rules
+ * as Pay to Play (afterChargeFailure). When we can't tell if Square took the
+ * money (network error, timeout, 5xx), the browser keeps the SAME checkout
+ * ID and token and retries: Square replays the earlier result or charges
+ * once now. Anything else (declined card, bad token) is final and the next
+ * tap starts a fresh attempt.
  */
-export function afterDuesChargeFailure(charge: {
-  retryable: boolean;
-  code: string;
-  message: string;
-}): { message: string; retrySame: boolean } {
-  if (charge.retryable) {
-    return { message: DUES_DROPPED_MESSAGE, retrySame: true };
+export function afterDuesChargeFailure(
+  charge: Extract<ChargeResult, { ok: false }>,
+): { message: string; retrySame: boolean } {
+  switch (afterChargeFailure(charge)) {
+    case "retry":
+      return { message: DROPPED_MESSAGE, retrySame: true };
+    case "keep":
+      // This checkout ID was already used with a different request, so an
+      // earlier try may have charged. Don't invite a second charge.
+      return {
+        message:
+          "This payment may already have gone through. Please check with the Club Secretary before paying again.",
+        retrySame: false,
+      };
+    case "cancel":
+      return { message: charge.message, retrySame: false };
   }
-  if (charge.code === "IDEMPOTENCY_KEY_REUSED") {
-    // An earlier try with this checkout ID may have charged. Don't invite a
-    // second, different charge.
-    return {
-      message:
-        "This payment may already have gone through. Please check with the Club Secretary before paying again.",
-      retrySame: false,
-    };
-  }
-  return { message: charge.message, retrySame: false };
 }
 
 /**

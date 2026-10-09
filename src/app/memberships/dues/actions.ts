@@ -3,7 +3,6 @@
 import { formatPrice } from "@/content/menu";
 import { isUuid } from "@/lib/codes";
 import {
-  DUES_DROPPED_MESSAGE,
   afterDuesChargeFailure,
   duesAmount,
   duesFormSchema,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/memberships/dues";
 import { getPayments } from "@/lib/payments";
 import type { ChargeResult } from "@/lib/payments/types";
+import { DROPPED_MESSAGE } from "@/lib/rounds/checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type DuesResult =
@@ -65,7 +65,7 @@ export async function payDues(
     .maybeSingle();
   // An earlier try of this checkout may have charged: keep it for a retry
   // (replaying the same checkout is always safe).
-  const retry = () => fail(DUES_DROPPED_MESSAGE, { retrySame: true });
+  const retry = () => fail(DROPPED_MESSAGE, { retrySame: true });
   if (existing.error) return retry();
   if (existing.data) return { ok: true, receiptId: checkoutId };
 
