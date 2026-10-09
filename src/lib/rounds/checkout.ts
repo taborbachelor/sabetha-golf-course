@@ -30,6 +30,23 @@ export function isAbandoned(
 }
 
 /**
+ * What an unpaid receipt can honestly say.
+ * - "unfinished": pending past the hold window. The server may have died
+ *   after Square charged and before we recorded it, so we can't say whether
+ *   the card was charged.
+ * - "confirming": pending within the hold window (a payment in progress).
+ * - "failed": cancelled or refunded. A round is only cancelled after a
+ *   definite failure, so the card wasn't charged for it.
+ */
+export function unpaidReceiptState(
+  round: { status: string; created_at: string },
+  now: Date = new Date(),
+): "unfinished" | "confirming" | "failed" {
+  if (round.status !== "pending") return "failed";
+  return isAbandoned(round, now) ? "unfinished" : "confirming";
+}
+
+/**
  * After a charge fails: cancel the round (release its carts, start a fresh
  * attempt next time) only when Square definitely didn't take the money.
  * - retryable (network error, timeout, 5xx): the charge may have happened,
