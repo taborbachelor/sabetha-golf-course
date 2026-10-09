@@ -226,9 +226,57 @@ const focused = (p) =>
       path: `${shotDir}/order-checkout.png`,
       fullPage: true,
     });
+    // Drop the reply to the first Pay after the server has charged.
+    let dropped = 0;
+    await p.route(`${base}/order**`, async (route) => {
+      const req = route.request();
+      if (
+        dropped === 0 &&
+        req.method() === "POST" &&
+        (req.postData() || "").includes("cnon:")
+      ) {
+        dropped++;
+        await route.fetch(); // the server charges...
+        return route.abort("internetdisconnected"); // ...the reply is lost
+      }
+      return route.fallback();
+    });
+    await payButton(p).click();
+    const droppedAlert = p.locator("[role=alert]:visible", {
+      hasText:
+        "Connection dropped. Tap Pay again — you won't be charged twice.",
+    });
+    await droppedAlert.waitFor({ timeout: 90000 });
+    check("first Pay's reply was dropped", dropped === 1);
+    check(
+      "dropped: retry message, order locked, Pay tappable",
+      (await p.getByLabel("Name").isDisabled()) &&
+        (await payButton(p).isEnabled()),
+    );
+    const { data: afterDrop } = await db
+      .from("orders")
+      .select("id, status, payment_id")
+      .eq("name", NAME);
+    console.log("  after the dropped reply, DB:", JSON.stringify(afterDrop));
+    await p.screenshot({ path: `${shotDir}/order-dropped.png` });
     await payButton(p).click();
     await p.waitForURL(/\/order\/status\//, { timeout: 90000 });
+    await p.unroute(`${base}/order**`);
     const id1 = p.url().split("/").pop();
+    const { data: afterRetry } = await db
+      .from("orders")
+      .select("id, status, payment_id")
+      .eq("name", NAME);
+    check(
+      "retry -> exactly one paid order, same payment",
+      afterRetry.length === 1 &&
+        afterRetry[0].id === id1 &&
+        afterRetry[0].status === "new" &&
+        !!afterRetry[0].payment_id &&
+        afterDrop.length === 1 &&
+        afterDrop[0].payment_id === afterRetry[0].payment_id,
+      JSON.stringify(afterRetry),
+    );
     await p.getByText("Received").filter({ visible: true }).waitFor();
     const tel = p.locator('main a[href^="tel:"]:visible');
     console.log(

@@ -22,10 +22,12 @@ import {
   MAX_QTY_PER_ITEM,
   orderSchema,
   type MenuRow,
+  type OrderInput,
   type UnavailableItem,
 } from "@/lib/orders/order";
 import { CallClubhouse } from "./CallClubhouse";
-import { placeOrder, type OrderResult } from "./actions";
+import { DROPPED_MESSAGE } from "@/lib/rounds/checkout";
+import { placeOrder } from "./actions";
 
 type Props = {
   items: MenuRow[];
@@ -125,7 +127,15 @@ export function OrderForm({
   const [paying, setPaying] = useState(false);
   const [cardReady, setCardReady] = useState(false);
   const tokenize = useRef<TokenizeFn | null>(null);
-  const checkoutId = useRef<string | null>(null);
+  // The attempt in flight: kept until a definite answer, so a retry after a
+  // dropped connection sends the same checkout ID, token and order.
+  const attempt = useRef<{
+    id: string;
+    token: string;
+    input: OrderInput;
+  } | null>(null);
+  // True while a payment may have gone through: the order is locked.
+  const [retrying, setRetrying] = useState(false);
   const placed = useRef(false);
   const focusNext = useRef<Field | null>(null);
   const checkoutRef = useRef<HTMLElement>(null);
@@ -155,7 +165,8 @@ export function OrderForm({
     () => () => {
       if (!placed.current) return;
       placed.current = false;
-      checkoutId.current = null;
+      attempt.current = null;
+      setRetrying(false);
       setQty({});
       setCheckingOut(false);
       setPaying(false);
@@ -264,77 +275,96 @@ export function OrderForm({
     setPayError(null);
   }
 
-  /** Validate, get a one-time token (card or wallet), then place the order. */
-  async function pay(
-    getToken: () => Promise<
-      { ok: true; token: string } | { ok: false; message: string }
-    >,
-  ) {
+  /**
+   * Validate, get a one-time token (card or wallet), then place the order.
+   * While a payment may have gone through (`attempt` is set), Pay sends the
+   * same checkout ID, token and order again instead, so it can't charge twice.
+   */
+  async function pay(walletToken?: string) {
     if (paying) return;
-    const parsed = orderSchema.safeParse(orderInput);
-    if (!parsed.success) {
-      const next: Partial<Record<Field, string>> = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as Field;
-        if (FIELDS.includes(field)) next[field] ??= issue.message;
+    let current = attempt.current;
+    let input: OrderInput | null = current?.input ?? null;
+    if (!current) {
+      const parsed = orderSchema.safeParse(orderInput);
+      if (!parsed.success) {
+        const next: Partial<Record<Field, string>> = {};
+        for (const issue of parsed.error.issues) {
+          const field = issue.path[0] as Field;
+          if (FIELDS.includes(field)) next[field] ??= issue.message;
+        }
+        if (next.hole) {
+          next.hole = "Pick the hole you're on";
+          setPickingHole(true);
+        }
+        focusNext.current = FIELDS.find((f) => next[f]) ?? null;
+        setPayError(null);
+        setErrors(next);
+        return;
       }
-      if (next.hole) {
-        next.hole = "Pick the hole you're on";
-        setPickingHole(true);
-      }
-      focusNext.current = FIELDS.find((f) => next[f]) ?? null;
-      setErrors(next);
-      return;
+      input = parsed.data;
     }
     setErrors({});
     setPaying(true);
     setPayError(null);
     setUnavailable([]);
-
-    const card = await getToken();
-    if (!card.ok) {
-      setPayError(card.message);
-      setPaying(false);
-      return;
-    }
-    checkoutId.current ??= crypto.randomUUID();
-    let result: OrderResult;
+    let navigating = false;
     try {
-      result = await placeOrder(checkoutId.current, parsed.data, card.token);
+      if (!current) {
+        let token = walletToken;
+        if (!token) {
+          if (!tokenize.current) return;
+          const card = await tokenize.current();
+          if (!card.ok) {
+            setPayError(card.message);
+            return;
+          }
+          token = card.token;
+        }
+        current = { id: crypto.randomUUID(), token, input: input! };
+        attempt.current = current;
+      }
+
+      const result = await placeOrder(current.id, current.input, current.token);
+      if (result.ok) {
+        attempt.current = null;
+        setRetrying(false);
+        rememberContact(current.input);
+        placed.current = true;
+        navigating = true;
+        // Replace, so Back doesn't return to a paid-for form.
+        router.replace(`/order/status/${result.orderId}`);
+        return;
+      }
+      if (result.retrySame) {
+        setRetrying(true);
+        setPayError(result.message);
+        return;
+      }
+      // A definite answer: the next tap is a new attempt.
+      attempt.current = null;
+      setRetrying(false);
+      setPayError(result.message);
+      if (result.unavailable?.length) {
+        setUnavailable(result.unavailable);
+        router.refresh(); // Re-filter the menu to what's orderable now.
+      } else if (result.closed) {
+        router.refresh(); // Show why ordering stopped.
+      } else if (FIELDS.includes(result.field as Field)) {
+        focusNext.current = result.field as Field;
+        setErrors({ [result.field as Field]: result.message });
+      }
     } catch {
-      // Weak signal: we don't know if it went through. Keep the same
-      // checkout ID so trying again can't charge twice.
-      setPayError(
-        "Couldn't reach the clubhouse. Check your signal and try again.",
-      );
-      setPaying(false);
-      return;
-    }
-    if (result.ok) {
-      rememberContact(parsed.data);
-      placed.current = true;
-      // Replace, so Back doesn't return to a paid-for form.
-      router.replace(`/order/status/${result.orderId}`);
-      return;
-    }
-    checkoutId.current = null;
-    setPayError(result.message);
-    setPaying(false);
-    if (result.unavailable?.length) {
-      setUnavailable(result.unavailable);
-      router.refresh(); // Re-filter the menu to what's orderable now.
-    } else if (result.closed) {
-      router.refresh(); // Show why ordering stopped.
-    } else if (FIELDS.includes(result.field as Field)) {
-      focusNext.current = result.field as Field;
-      setErrors({ [result.field as Field]: result.message });
+      // Weak signal: the request (or Square's card form) lost the
+      // connection. If the attempt reached the server it may have charged,
+      // so keep it as is for the next tap.
+      setRetrying(!!attempt.current);
+      setPayError(DROPPED_MESSAGE);
+    } finally {
+      if (!navigating) setPaying(false);
     }
   }
 
-  const onPay = () => {
-    if (!tokenize.current) return;
-    void pay(tokenize.current);
-  };
+  const onPay = () => void pay();
 
   const openCheckout = () => {
     setCheckingOut(true);
@@ -362,7 +392,9 @@ export function OrderForm({
               ? `Delivering to hole ${hole}`
               : "Which hole are you on?"}
           </h2>
-          {hole && !pickingHole && <ChangeHoleButton onClick={changeHole} />}
+          {hole && !pickingHole && !retrying && (
+            <ChangeHoleButton onClick={changeHole} />
+          )}
         </div>
         {pickingHole &&
           (showCheckout ? (
@@ -436,6 +468,7 @@ export function OrderForm({
                       <button
                         type="button"
                         onClick={() => change(item.id, -1)}
+                        disabled={retrying}
                         aria-label={`One less ${item.name}`}
                         className="chip size-11 justify-center px-0 text-xl"
                       >
@@ -454,8 +487,11 @@ export function OrderForm({
                     onClick={() => change(item.id, 1)}
                     // Disabled until hydrated, so an early tap on a slow
                     // connection looks inert instead of being silently lost.
+                    // Locked while a payment may have gone through.
                     disabled={
-                      !hydrated || (qty[item.id] ?? 0) >= MAX_QTY_PER_ITEM
+                      !hydrated ||
+                      retrying ||
+                      (qty[item.id] ?? 0) >= MAX_QTY_PER_ITEM
                     }
                     aria-label={`Add ${item.name}`}
                     className="chip size-11 justify-center px-0 text-xl"
@@ -485,7 +521,7 @@ export function OrderForm({
                   <p className="text-lg">
                     Deliver to <strong>hole {hole}</strong>
                   </p>
-                  <ChangeHoleButton onClick={changeHole} />
+                  {!retrying && <ChangeHoleButton onClick={changeHole} />}
                 </div>
                 <p className="text-sm text-stone-600">
                   Keep playing. We&apos;ll bring it to you on or near this hole.
@@ -540,6 +576,7 @@ export function OrderForm({
                 clearError("name");
               }}
               autoComplete="name"
+              disabled={retrying}
               className="input scroll-mt-24"
               {...fieldProps("name")}
             />
@@ -561,6 +598,7 @@ export function OrderForm({
                 clearError("phone");
               }}
               autoComplete="tel"
+              disabled={retrying}
               className="input scroll-mt-24"
               {...fieldProps("phone")}
             />
@@ -577,12 +615,8 @@ export function OrderForm({
             onReady={onCardReady}
             amountCents={total}
             label="Order to the Course"
-            onWalletToken={
-              canPay
-                ? (token) => pay(async () => ({ ok: true, token }))
-                : undefined
-            }
-            disabled={paying}
+            onWalletToken={canPay ? (token) => pay(token) : undefined}
+            disabled={paying || retrying}
           />
           {payError && (
             <div
@@ -590,6 +624,11 @@ export function OrderForm({
               className="space-y-2 rounded-lg bg-red-50 px-4 py-3 text-red-800"
             >
               <p>{payError}</p>
+              {retrying && (
+                <p className="text-sm">
+                  Your order is locked until this payment finishes.
+                </p>
+              )}
               {unavailable.length > 0 && (
                 <button
                   type="button"
@@ -604,7 +643,8 @@ export function OrderForm({
           <button
             type="button"
             onClick={onPay}
-            disabled={!cardReady || paying}
+            // A retry reuses the stored token, so it doesn't need the card form.
+            disabled={(!cardReady && !retrying) || paying}
             className="w-full rounded-xl bg-green-800 px-5 py-4 text-lg font-bold text-white hover:bg-green-900 disabled:bg-stone-400"
           >
             {paying ? "Placing order…" : `Pay ${formatPrice(total)}`}
