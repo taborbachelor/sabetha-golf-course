@@ -27,6 +27,37 @@ export const duesFormSchema = z.object({
 
 export type DuesForm = z.infer<typeof duesFormSchema>;
 
+/** Shown when a dues payment may or may not have gone through. */
+export const DUES_DROPPED_MESSAGE =
+  "Connection dropped. Tap Pay again — you won't be charged twice.";
+
+/**
+ * What the dues form should do after a failed charge. When we can't tell if
+ * Square took the money (network error, timeout, 5xx), the browser keeps the
+ * SAME checkout ID and token and retries: Square replays the earlier result
+ * or charges once now. Anything else (declined card, bad token) is final and
+ * the next tap starts a fresh attempt.
+ */
+export function afterDuesChargeFailure(charge: {
+  retryable: boolean;
+  code: string;
+  message: string;
+}): { message: string; retrySame: boolean } {
+  if (charge.retryable) {
+    return { message: DUES_DROPPED_MESSAGE, retrySame: true };
+  }
+  if (charge.code === "IDEMPOTENCY_KEY_REUSED") {
+    // An earlier try with this checkout ID may have charged. Don't invite a
+    // second, different charge.
+    return {
+      message:
+        "This payment may already have gone through. Please check with the Club Secretary before paying again.",
+      retrySame: false,
+    };
+  }
+  return { message: charge.message, retrySame: false };
+}
+
 /**
  * Which season a dues payment covers. Dues statements go out at the end of
  * January and are due March 1 / June 1, and the course winds down in the

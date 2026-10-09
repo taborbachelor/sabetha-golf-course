@@ -11,6 +11,7 @@ import {
 } from "@/components/SquareCard";
 import { errorId, errorsByField, focusFirstInvalid } from "@/lib/forms";
 import {
+  DUES_DROPPED_MESSAGE,
   INSTALLMENTS,
   duesAmount,
   duesFormSchema,
@@ -44,7 +45,6 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
   const tier = tiers.find((t) => t.id === tierId);
   const amount = tier ? duesAmount(tier.priceCents, installment) : null;
   const formValues = { tierId, installment, name, email };
-  const formKey = JSON.stringify(formValues);
 
   /** Every problem with the form at once (empty when it can be paid). */
   function check(): Errors {
@@ -86,11 +86,16 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
   const router = useRouter();
   useEffect(() => preloadSquare(), []);
   const tokenize = useRef<TokenizeFn | null>(null);
-  // Kept only when the card was charged but saving failed, so the retry
-  // replays the same charge instead of making a new one.
-  const attempt = useRef<{ id: string; token: string; key: string } | null>(
-    null,
-  );
+  // The attempt in flight: kept until a definite answer, so a retry after a
+  // dropped connection sends the same checkout ID, token and details, and
+  // Square replays the charge instead of taking a second one.
+  const attempt = useRef<{
+    id: string;
+    token: string;
+    values: typeof formValues;
+  } | null>(null);
+  // While an attempt may have charged, the details are locked.
+  const [retrying, setRetrying] = useState(false);
   const [cardReady, setCardReady] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -107,33 +112,55 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
   /** Charge a card or wallet token; shared by the Pay button and wallets. */
   async function pay(getToken: () => Promise<TokenResult>) {
     if (paying) return;
-    if (!validate()) return;
+    let current = attempt.current;
+    if (!current && !validate()) return;
     setPaying(true);
     setPayError(null);
+    let navigating = false;
+    try {
+      if (!current) {
+        const source = await getToken();
+        if (!source.ok) {
+          setPayError(source.message);
+          return;
+        }
+        current = {
+          id: crypto.randomUUID(),
+          token: source.token,
+          values: formValues,
+        };
+        attempt.current = current;
+      }
 
-    let current = attempt.current?.key === formKey ? attempt.current : null;
-    if (!current) {
-      const source = await getToken();
-      if (!source.ok) {
-        setPayError(source.message);
-        setPaying(false);
+      const result = await payDues(current.id, current.values, current.token);
+      if (result.ok) {
+        attempt.current = null;
+        navigating = true;
+        // Replace, so Back from the receipt never lands on this attempt.
+        router.replace(`/memberships/dues/receipt/${result.receiptId}`);
         return;
       }
-      current = { id: crypto.randomUUID(), token: source.token, key: formKey };
+      if (result.retrySame) {
+        setRetrying(true);
+        setPayError(result.message);
+        return;
+      }
+      // A definite answer: the next tap is a new attempt.
+      attempt.current = null;
+      setRetrying(false);
+      if (result.field) {
+        setErrors({ [result.field]: result.message });
+        setFocusTick((n) => n + 1);
+      }
+      setPayError(result.message);
+    } catch {
+      // The request (or Square's card form) lost the connection. If the
+      // attempt reached the server it may have charged, so keep it as is.
+      setRetrying(!!attempt.current);
+      setPayError(DUES_DROPPED_MESSAGE);
+    } finally {
+      if (!navigating) setPaying(false);
     }
-
-    const result = await payDues(current.id, formValues, current.token);
-    if (result.ok) {
-      router.push(`/memberships/dues/receipt/${result.receiptId}`);
-      return;
-    }
-    attempt.current = result.retrySame ? current : null;
-    if (result.field) {
-      setErrors({ [result.field]: result.message });
-      setFocusTick((n) => n + 1);
-    }
-    setPayError(result.message);
-    setPaying(false);
   }
 
   function onPay() {
@@ -155,7 +182,9 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
 
   return (
     <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-7">
-      <fieldset>
+      {/* Details are locked (disabled) while an attempt that may have
+          charged is waiting for its retry. */}
+      <fieldset disabled={retrying}>
         <legend id="tier-legend" className="mb-2 font-medium">
           Membership type
         </legend>
@@ -201,7 +230,7 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
         <FieldError field="tierId" message={errors.tierId} />
       </fieldset>
 
-      <fieldset>
+      <fieldset disabled={retrying}>
         <legend className="mb-2 font-medium">Paying</legend>
         {/* Three across when they fit; stacked on narrow screens or large text. */}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
@@ -226,7 +255,7 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
         <FieldError field="installment" message={errors.installment} />
       </fieldset>
 
-      <fieldset className="space-y-4">
+      <fieldset disabled={retrying} className="space-y-4">
         <legend className="text-lg font-bold">Member</legend>
         <label className="block">
           <span className="mb-1.5 block font-medium">Member name</span>
@@ -303,7 +332,7 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
             label="Membership dues"
             // Wallet buttons only while the form is complete and payable.
             onWalletToken={canPay ? onWalletToken : undefined}
-            disabled={paying}
+            disabled={paying || retrying}
           />
           {payError && (
             <p
@@ -311,6 +340,11 @@ export function DuesForm({ tiers }: { tiers: DuesTier[] }) {
               className="rounded-lg bg-red-50 px-4 py-3 text-red-800"
             >
               {payError}
+              {retrying && (
+                <span className="mt-1 block text-sm">
+                  Your details are locked until this payment finishes.
+                </span>
+              )}
             </p>
           )}
           <button

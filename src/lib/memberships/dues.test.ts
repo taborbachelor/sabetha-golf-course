@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  DUES_DROPPED_MESSAGE,
+  afterDuesChargeFailure,
   duesAmount,
   duesFormSchema,
   duesReceiptCode,
@@ -43,6 +45,38 @@ describe("duesFormSchema", () => {
     expect(duesFormSchema.safeParse({ ...valid, tierId: "" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("afterDuesChargeFailure", () => {
+  it("keeps the same checkout for a retry when the charge may have happened", () => {
+    expect(
+      afterDuesChargeFailure({
+        retryable: true,
+        code: "NETWORK",
+        message: "fetch failed",
+      }),
+    ).toEqual({ message: DUES_DROPPED_MESSAGE, retrySame: true });
+  });
+
+  it("starts fresh after a definite failure", () => {
+    expect(
+      afterDuesChargeFailure({
+        retryable: false,
+        code: "CARD_DECLINED",
+        message: "Card declined",
+      }),
+    ).toEqual({ message: "Card declined", retrySame: false });
+  });
+
+  it("warns instead of retrying when the checkout ID was already used", () => {
+    const r = afterDuesChargeFailure({
+      retryable: false,
+      code: "IDEMPOTENCY_KEY_REUSED",
+      message: "x",
+    });
+    expect(r.retrySame).toBe(false);
+    expect(r.message).toMatch(/may already have gone through/);
   });
 });
 
