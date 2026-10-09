@@ -49,12 +49,15 @@ const log = (step, ...rest) =>
   );
 // Docs screenshots are JPEGs so the repo stays small.
 const docs = args.includes("--docs");
-const shot = (page, name, fullPage = false) =>
-  page.screenshot({
+const shot = async (page, name, fullPage = false) => {
+  // Start every shot at the top: the tablet layout scrolls while staff tap.
+  if (!fullPage) await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
     path: `${shotDir}/${name}.${docs ? "jpg" : "png"}`,
     fullPage,
     ...(docs ? { type: "jpeg", quality: 70 } : {}),
   });
+};
 
 async function payWithCard(p) {
   await p
